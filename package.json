@@ -1,0 +1,30 @@
+{
+  "name": "rickys-brain-dump",
+  "version": "1.0.0",
+  "description": "A Lucidchart-style brain map + time blocker + content breakdown board. Built for ADHD brains. No build step, no framework, no account — one HTML file and a JSON file, synced through git.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/genesisx-1/rickys-brain-dump.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/genesisx-1/rickys-brain-dump/issues"
+  },
+  "homepage": "https://github.com/genesisx-1/rickys-brain-dump#readme",
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": "^1.1.0",
+    "ws": "^8.21.0"
+  },
+  "allowScripts": {
+    "node-pty@1.1.0": true
+  }
+}

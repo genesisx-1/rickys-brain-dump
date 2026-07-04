@@ -1,21 +1,25 @@
 # 🧠 Ricky's Brain Dump
 
-A Lucidchart-style brain map + time blocker + content breakdown board. Built for ADHD brains.
-No build step, no framework, no account — one HTML file and a JSON file, synced through git.
+A Lucidchart-style brain map + time blocker + content breakdowns + an AI **team** — with Claude living in a terminal *inside* the app. Built for ADHD brains.
 
-## Run it locally
+## Run it (the cockpit)
 
-Double-click **`start.command`** (or run `python3 -m http.server 8420` in this folder), then it opens at http://localhost:8420
+Double-click **`start.command`** → opens at http://localhost:8420 with:
+
+- **⌨️ Claude button** — a real terminal panel at the bottom running Claude Code. Talk to it; cards appear on your board **live**, no refresh.
+- **👥 Team tab** — named AI teammates, each with their own personality, skills, and memory. Click **Talk** and the conversation resumes where you left it (`claude --continue` under the hood, one working dir per teammate in `.team/`). Check 2+ and hit **Group session** for a roundtable.
+- **Auto-save everywhere** — every change syncs straight to `data.json`. No save button needed when the cockpit is running.
+
+First-time setup on a new computer: `git clone`, then `npm install` in the folder (unlocks the terminal panel), then `start.command`.
 
 ## How saving works
 
-- **Everything auto-saves to the browser instantly** — you never lose work.
-- Hit **💾 Save** to write `data.json` into this folder (first time, a file picker asks where — pick `data.json` in this repo folder; after that it saves silently).
-- The board loads whichever is **newer**: your browser save or `data.json`.
+- Cockpit running → **everything auto-syncs to `data.json`** as you work, and the page hot-reloads when Claude edits the file.
+- Basic mode (GitHub Pages / no node): auto-saves to the browser; hit **💾 Save** to write `data.json`.
+- The board loads whichever is **newer**: browser save or `data.json`.
+- Teammate conversation memory is per-computer (it lives in Claude Code's own history); the board itself syncs everywhere through git.
 
 ## The workflow with Claude
-
-Open a terminal in this folder, run `claude`, and:
 
 | You say | What happens |
 |---|---|

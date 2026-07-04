@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <title>🧠 Ricky's Brain Dump</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="vendor/xterm.css">
 <style>
   :root {
     --bg: #0e1116; --panel: #161b24; --panel2: #1d2431; --line: #2a3242;
@@ -153,6 +154,62 @@
   .swRow .sw.on { border-color: #fff; }
   .transcript { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px; max-height: 320px; overflow: auto; font-size: 13.5px; line-height: 1.7; color: #c4cddb; white-space: pre-wrap; user-select: text; }
   .tip { font-size: 12px; color: var(--dim); background: var(--panel2); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+
+  /* ─── Terminal drawer ─── */
+  #termBtn { padding: 7px 14px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; display: none; white-space: nowrap; }
+  #termBtn.open { border-color: var(--accent2); color: var(--accent2); }
+  #termDrawer { display: none; flex-direction: column; height: 320px; background: #0a0d12; border-top: 1px solid var(--line); flex-shrink: 0; }
+  #termDrawer.on { display: flex; }
+  #termGrip { height: 6px; cursor: ns-resize; background: linear-gradient(90deg, transparent, var(--line), transparent); flex-shrink: 0; }
+  #termGrip:hover { background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+  #termHead { display: flex; align-items: center; gap: 8px; padding: 5px 10px 0; flex-shrink: 0; }
+  #termHead > button { margin-left: auto; color: var(--dim); font-weight: 700; font-size: 12px; padding: 4px 8px; }
+  #termHead > button:hover { color: var(--text); }
+  #termTabs { display: flex; gap: 4px; overflow-x: auto; }
+  .ttab { display: flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 8px 8px 0 0; background: transparent; color: var(--dim); font-size: 12.5px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; border-bottom: none; }
+  .ttab.on { background: #10141b; color: var(--text); border-color: var(--line); }
+  .ttab .st { width: 7px; height: 7px; border-radius: 50%; background: var(--c-gray); flex-shrink: 0; }
+  .ttab.live .st { background: var(--accent2); box-shadow: 0 0 7px var(--accent2); }
+  .ttab .x { color: var(--dim); font-weight: 800; padding: 0 1px; }
+  .ttab .x:hover { color: var(--danger); }
+  #termHost { flex: 1; min-height: 0; padding: 6px 8px 8px 14px; background: #10141b; border-top: 1px solid var(--line); }
+  #termHost .tpane { height: 100%; display: none; }
+  #termHost .tpane.on { display: block; }
+  #termHost .xterm { height: 100%; }
+
+  /* ─── Team ─── */
+  #teamGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .tmCard { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; position: relative; border-top: 4px solid var(--tm-c, var(--accent)); transition: transform .15s, border-color .15s; }
+  .tmCard:hover { transform: translateY(-2px); border-color: var(--tm-c, var(--accent)); }
+  .tmCard .ava { font-size: 38px; line-height: 1; }
+  .tmCard h3 { font-size: 17px; margin-top: 8px; }
+  .tmCard .role { font-size: 12.5px; color: var(--dim); margin-top: 2px; min-height: 34px; }
+  .tmCard .st { position: absolute; top: 14px; right: 40px; font-size: 11px; font-weight: 800; color: var(--c-gray); display: flex; align-items: center; gap: 5px; }
+  .tmCard .st::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c-gray); }
+  .tmCard.live .st { color: var(--accent2); }
+  .tmCard.live .st::before { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+  .tmCard .pick { position: absolute; top: 12px; right: 12px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  .tmCard .row2 { display: flex; gap: 8px; margin-top: 14px; }
+  .tmCard .talk { flex: 1; background: linear-gradient(90deg, var(--accent), #9d7bff); color: #fff; font-weight: 800; padding: 9px; border-radius: 9px; }
+  .tmCard .talk:hover { filter: brightness(1.15); }
+  .tmCard .edit { background: var(--panel2); border: 1px solid var(--line); padding: 9px 13px; border-radius: 9px; }
+  .tmCard .resume { font-size: 11px; color: var(--accent2); font-weight: 700; margin-top: 8px; }
+
+  /* ─── Toast + polish ─── */
+  #toast { position: fixed; bottom: 26px; left: 50%; transform: translate(-50%, 90px); background: var(--panel); border: 1px solid var(--accent); padding: 10px 22px; border-radius: 99px; font-weight: 700; z-index: 300; transition: transform .28s cubic-bezier(.34,1.56,.64,1); box-shadow: 0 10px 34px rgba(0,0,0,.55); }
+  #toast.on { transform: translate(-50%, 0); }
+  @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+  .card.pop { animation: pop .28s cubic-bezier(.34,1.56,.64,1); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #2a3242; border-radius: 99px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: #3a4562; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+  header { box-shadow: 0 1px 0 #ffffff08, 0 6px 24px rgba(0,0,0,.35); }
+  nav button, .nav, #mapToolbar button, #saveBtn, #focusBtn, #termBtn, .addBtn { transition: all .15s; }
+  #saveBtn:hover { filter: brightness(1.18); }
+  .card { transition: box-shadow .15s, border-color .15s; }
+  .vidCard { transition: border-color .15s, transform .15s; }
+  .vidCard:hover { transform: translateY(-1px); }
 </style>
 
 <header>
@@ -161,10 +218,12 @@
     <button data-v="map" class="on">🗺️ Brain Map</button>
     <button data-v="time">📅 Time Blocks</button>
     <button data-v="content">🎬 Content</button>
+    <button data-v="team">👥 Team</button>
   </nav>
   <div class="spacer"></div>
   <span id="saveStatus">loading…</span>
   <button id="focusBtn" title="25-min focus timer">🎯 Focus</button>
+  <button id="termBtn" title="Open Claude terminal">⌨️ Claude</button>
   <button id="saveBtn" title="Write data.json into the repo folder">💾 Save</button>
 </header>
 
@@ -211,9 +270,35 @@
   </div>
 </div>
 
+<!-- ═══ TEAM ═══ -->
+<div class="view" id="teamView">
+  <div class="cwrap">
+    <h2>👥 Your Team</h2>
+    <div class="sub">Each teammate is a separate AI session with their own personality, skills, and memory. Click <b>Talk</b> — the conversation picks up right where you left off. Check a few + hit <b>Group session</b> to get them in one room.</div>
+    <div id="teamOffline" class="tip" style="display:none">⚠️ Team sessions need the local cockpit — double-click <b>start.command</b> on your Mac to unlock this tab.</div>
+    <div style="display:flex; gap:10px; margin-bottom:16px">
+      <button class="addBtn" id="addMateBtn" style="margin:0">＋ New teammate</button>
+      <button class="addBtn" id="groupBtn" style="margin:0">🗣️ Group session</button>
+    </div>
+    <div id="teamGrid"></div>
+  </div>
+</div>
+
+<!-- ═══ TERMINAL DRAWER ═══ -->
+<div id="termDrawer">
+  <div id="termGrip" title="drag to resize"></div>
+  <div id="termHead">
+    <div id="termTabs"></div>
+    <button id="termClose" title="hide panel">▾ hide</button>
+  </div>
+  <div id="termHost"></div>
+</div>
+
 <!-- ═══ MODAL ═══ -->
 <div id="modalBg"><div id="modal"></div></div>
 
+<script src="vendor/xterm.js"></script>
+<script src="vendor/addon-fit.js"></script>
 <script>
 /* ═══════════════ STATE ═══════════════ */
 const COLORS = { purple:'#7c5cff', green:'#00d4a6', blue:'#3da5ff', orange:'#ff9f43', pink:'#ff6bcb', yellow:'#ffd166', red:'#ff5470', gray:'#5c6a80' };
@@ -234,9 +319,14 @@ async function loadState() {
   try { const r = await fetch('data.json?t=' + Date.now()); if (r.ok) remote = await r.json(); } catch {}
   if (local && remote) state = (local.savedAt || 0) >= (remote.savedAt || 0) ? local : remote;
   else state = local || remote || DEFAULT();
-  state.nodes ||= []; state.edges ||= []; state.blocks ||= []; state.content ||= [];
+  normalize();
   setStatus('loaded ✓');
-  renderMap(); renderTime(); renderContent();
+  renderMap(); renderTime(); renderContent(); renderTeam();
+}
+function normalize() {
+  state.nodes ||= []; state.edges ||= []; state.blocks ||= []; state.content ||= [];
+  if (!state.team) state.team = DEFAULT_TEAM();
+  state.groups ||= {};
 }
 
 let saveTimer;
@@ -245,8 +335,20 @@ function touch() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     localStorage.setItem('rbd', JSON.stringify(state));
-    setStatus('● saved in browser — hit 💾 Save to sync file', true);
+    if (SRV.api) serverAutosave();
+    else setStatus('● saved in browser — hit 💾 Save to sync file', true);
   }, 350);
+}
+
+/* when the local server is running, everything syncs to data.json automatically */
+let srvTimer;
+function serverAutosave() {
+  clearTimeout(srvTimer);
+  srvTimer = setTimeout(() => {
+    fetch('/api/save', { method: 'POST', body: JSON.stringify(state) })
+      .then(r => { if (r.ok) { dirty = false; setStatus('✓ synced ' + new Date().toLocaleTimeString()); } })
+      .catch(() => setStatus('● saved in browser (server offline)', true));
+  }, 600);
 }
 function setStatus(msg, isDirty = false) {
   const el = document.getElementById('saveStatus');
@@ -258,6 +360,12 @@ document.getElementById('saveBtn').onclick = async () => {
   state.savedAt = Date.now();
   localStorage.setItem('rbd', JSON.stringify(state));
   const json = JSON.stringify(state, null, 2);
+  if (SRV.api) { // local server writes the file directly — no picker needed
+    try {
+      const r = await fetch('/api/save', { method: 'POST', body: json });
+      if (r.ok) { dirty = false; setStatus('✓ data.json saved ' + new Date().toLocaleTimeString()); toast('💾 saved to repo'); return; }
+    } catch {}
+  }
   try {
     if (!fileHandle && window.showSaveFilePicker) {
       fileHandle = await showSaveFilePicker({ suggestedName: 'data.json', types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] });
@@ -281,6 +389,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
   document.getElementById(b.dataset.v + 'View').classList.add('on');
   if (b.dataset.v === 'time') renderTime();
+  if (b.dataset.v === 'team') renderTeam();
 });
 
 /* ═══════════════ BRAIN MAP ═══════════════ */
@@ -299,9 +408,11 @@ function renderMap() {
   applySearch();
 }
 
+const seenNodes = new Set();
 function makeCard(n) {
   const el = document.createElement('div');
   el.className = 'card' + (sel.type === 'node' && sel.id === n.id ? ' sel' : '');
+  if (!seenNodes.has(n.id)) { el.classList.add('pop'); seenNodes.add(n.id); }
   el.dataset.id = n.id;
   el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
   el.style.setProperty('--card-c', COLORS[n.color] || COLORS.purple);
@@ -692,8 +803,276 @@ focusBtn.onclick = () => {
   }, 500);
 };
 
+/* ═══════════════ LIVE SYNC + SERVER ═══════════════ */
+const SRV = { api: false, terminal: false };
+async function detectServer() {
+  try {
+    const r = await fetch('/api/ping');
+    if (r.ok) {
+      const j = await r.json();
+      SRV.api = j.ok; SRV.terminal = !!j.terminal;
+      if (j.live) connectEvents();
+    }
+  } catch {}
+  if (SRV.terminal) document.getElementById('termBtn').style.display = '';
+  if (!SRV.api) setInterval(refreshFromFile, 5000); // fallback: poll for file changes
+  renderTeam();
+}
+function connectEvents() {
+  const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/events');
+  ws.onmessage = () => refreshFromFile();
+  ws.onclose = () => setTimeout(connectEvents, 3000);
+}
+async function refreshFromFile() {
+  try {
+    const r = await fetch('data.json?t=' + Date.now());
+    if (!r.ok) return;
+    const remote = await r.json();
+    if ((remote.savedAt || 0) > (state?.savedAt || 0)) {
+      state = remote;
+      normalize();
+      localStorage.setItem('rbd', JSON.stringify(state));
+      renderMap(); renderTime(); renderContent(); renderTeam();
+      toast('🤖 board updated live');
+    }
+  } catch {}
+}
+
+/* ═══════════════ TERMINAL SESSIONS ═══════════════ */
+const sessions = {};   // key → { title, cwd, term, fit, ws, pane }
+let activeKey = null;
+const termDrawer = document.getElementById('termDrawer');
+
+document.getElementById('termBtn').onclick = () => {
+  if (termDrawer.classList.contains('on')) return hideDrawer();
+  openSession({ key: 'main', title: '🧠 Claude', cwd: null, startCmd: 'claude\r' });
+};
+document.getElementById('termClose').onclick = hideDrawer;
+function hideDrawer() { termDrawer.classList.remove('on'); document.getElementById('termBtn').classList.remove('open'); }
+function showDrawer() { termDrawer.classList.add('on'); document.getElementById('termBtn').classList.add('open'); }
+
+function openSession(o) {
+  showDrawer();
+  let s = sessions[o.key];
+  if (!s) {
+    const pane = document.createElement('div'); pane.className = 'tpane';
+    document.getElementById('termHost').appendChild(pane);
+    const term = new Terminal({
+      fontSize: 13.5, fontFamily: '"SF Mono", Menlo, monospace', cursorBlink: true, scrollback: 4000,
+      theme: { background: '#10141b', foreground: '#e8ecf3', cursor: '#7c5cff', cursorAccent: '#10141b', selectionBackground: '#7c5cff55' }
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit); term.open(pane);
+    s = sessions[o.key] = { key: o.key, title: o.title, cwd: o.cwd, term, fit, pane, ws: null };
+    term.onData(d => { if (s.ws && s.ws.readyState === 1) s.ws.send(JSON.stringify({ type: 'in', data: d })); });
+    term.onResize(({ cols, rows }) => { if (s.ws && s.ws.readyState === 1) s.ws.send(JSON.stringify({ type: 'resize', cols, rows })); });
+    connectSession(s, o.startCmd);
+  } else if (!s.ws || s.ws.readyState > 1) {
+    connectSession(s, 'claude --continue\r'); // session died → pick the convo back up
+  }
+  activate(o.key);
+}
+
+function connectSession(s, startCmd) {
+  const q = s.cwd ? '?cwd=' + encodeURIComponent(s.cwd) : '';
+  const ws = s.ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/term' + q);
+  ws.onopen = () => {
+    s.fit.fit();
+    if (startCmd) setTimeout(() => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'in', data: startCmd })), 1200);
+    renderTabs(); renderTeam();
+  };
+  ws.onmessage = e => { const m = JSON.parse(e.data); if (m.type === 'out') s.term.write(m.data); };
+  ws.onclose = () => { s.term.write('\r\n\x1b[90m[ended — click the tab or their card to resume]\x1b[0m\r\n'); renderTabs(); renderTeam(); };
+}
+
+function activate(key) {
+  activeKey = key;
+  for (const [k, s] of Object.entries(sessions)) s.pane.classList.toggle('on', k === key);
+  renderTabs();
+  const s = sessions[key];
+  requestAnimationFrame(() => { s.fit.fit(); s.term.focus(); });
+}
+
+function closeSession(key) {
+  const s = sessions[key]; if (!s) return;
+  try { s.ws && s.ws.close(); } catch {}
+  s.term.dispose(); s.pane.remove(); delete sessions[key];
+  const left = Object.keys(sessions);
+  if (activeKey === key) { left.length ? activate(left[0]) : hideDrawer(); }
+  renderTabs(); renderTeam();
+}
+
+function renderTabs() {
+  const bar = document.getElementById('termTabs'); bar.innerHTML = '';
+  for (const [k, s] of Object.entries(sessions)) {
+    const live = s.ws && s.ws.readyState === 1;
+    const t = document.createElement('button');
+    t.className = 'ttab' + (k === activeKey ? ' on' : '') + (live ? ' live' : '');
+    t.innerHTML = `<span class="st"></span>${esc(s.title)}<span class="x" title="close session">✕</span>`;
+    t.onclick = e => {
+      if (e.target.classList.contains('x')) return closeSession(k);
+      if (!s.ws || s.ws.readyState > 1) connectSession(s, 'claude --continue\r');
+      activate(k);
+    };
+    bar.appendChild(t);
+  }
+}
+
+window.addEventListener('resize', () => { if (activeKey && termDrawer.classList.contains('on')) sessions[activeKey].fit.fit(); });
+document.getElementById('termGrip').onmousedown = e => {
+  e.preventDefault();
+  const sh = termDrawer.offsetHeight, sy = e.clientY;
+  const mv = ev => {
+    termDrawer.style.height = Math.min(window.innerHeight - 150, Math.max(140, sh + (sy - ev.clientY))) + 'px';
+    if (activeKey) sessions[activeKey].fit.fit();
+  };
+  const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+  document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+};
+
+/* ═══════════════ TEAM ═══════════════ */
+const DEFAULT_TEAM = () => ([
+  { id: 'marcus', name: 'Marcus', emoji: '🏗️', color: 'blue',   role: 'The Builder — code, apps, tech, automation', vibe: 'Calm senior-engineer energy. Explains simply, builds fast, zero jargon.', skills: 'coding, debugging, app ideas, tech decisions, automating boring stuff', talked: false },
+  { id: 'sloane', name: 'Sloane', emoji: '📈', color: 'pink',   role: 'Marketing — content, hooks, brand, growth', vibe: 'Sharp and trend-aware, allergic to boring. Thinks in hooks and thumbnails.', skills: 'content ideas, titles/hooks, social strategy, branding, audience growth', talked: false },
+  { id: 'vera',   name: 'Vera',   emoji: '💰', color: 'green',  role: 'Money — business ops, pricing, deals', vibe: 'Straight shooter. Margins first. Kills bad ideas fast, doubles down on good ones.', skills: 'business models, pricing, negotiation, revenue ideas, cost-cutting', talked: false },
+  { id: 'sam',    name: 'Sam',    emoji: '🧘', color: 'purple', role: 'Focus coach — ADHD accountability, planning', vibe: 'Chill but firm. Breaks scary things into tiny next steps. Celebrates wins loudly.', skills: 'time-blocking the week on the board, breaking down overwhelm, prioritizing, habit systems', talked: false },
+  { id: 'quinn',  name: 'Quinn',  emoji: '✍️', color: 'orange', role: 'The Writer — scripts, posts, emails', vibe: 'Punchy. Zero fluff. Writes like people actually talk.', skills: 'video scripts, social posts, emails, bios, anything made of words', talked: false },
+]);
+
+function mateBrief(m) {
+  return `# ${m.emoji} ${m.name} — ${m.role}
+
+You are ${m.name}, one of Ricky's AI teammates inside his Brain Dump app. Stay in character every message.
+
+## Personality
+${m.vibe}
+
+## Your lane (what Ricky comes to you for)
+${m.skills}
+
+## House rules
+- Ricky has ADHD: short, punchy replies. One thing at a time. No walls of text.
+- You share his visual board: follow the board-editing rules in the repo root CLAUDE.md. The board file is \`../../data.json\` relative to your folder — edit it and he sees cards appear live.
+- When your advice produces ideas/tasks worth keeping, PUT THEM ON THE BOARD (cards in your topic's color, time blocks if it's schedule stuff).
+- Sign off card bodies you create with "— ${m.name}" so he knows who added what.
+`;
+}
+function groupBrief(members) {
+  return `# 🗣️ Group session — ${members.map(m => m.name).join(', ')}
+
+You are a roundtable of Ricky's AI teammates, all in one room. Every reply, speak as whichever teammate(s) have something worth saying, prefixing each voice like "${members[0].emoji} **${members[0].name}:**". Let them disagree — Ricky wants real debate, not a chorus.
+
+## The room
+${members.map(m => `- ${m.emoji} **${m.name}** — ${m.role}. ${m.vibe} Lane: ${m.skills}`).join('\n')}
+
+## House rules
+- Ricky has ADHD: keep each voice to 1–3 sentences. End with ONE clear next step when he asks for a decision.
+- You share his visual board: follow the repo root CLAUDE.md rules. The board file is \`../../data.json\` — put decisions and ideas on it as cards.
+`;
+}
+
+const slug = s => (s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'mate');
+async function ensureMateDir(dir, brief) {
+  try { await fetch('/api/team-setup', { method: 'POST', body: JSON.stringify({ dir, brief }) }); } catch {}
+}
+
+function renderTeam() {
+  const grid = document.getElementById('teamGrid'); if (!grid || !state) return;
+  document.getElementById('teamOffline').style.display = SRV.terminal ? 'none' : '';
+  const checked = new Set([...grid.querySelectorAll('.pick')].filter(c => c.checked).map(c => c.dataset.id));
+  grid.innerHTML = '';
+  for (const m of state.team) {
+    const s = sessions['tm-' + m.id];
+    const live = s && s.ws && s.ws.readyState === 1;
+    const el = document.createElement('div');
+    el.className = 'tmCard' + (live ? ' live' : '');
+    el.style.setProperty('--tm-c', COLORS[m.color] || COLORS.purple);
+    el.innerHTML = `
+      <input type="checkbox" class="pick" data-id="${m.id}" title="select for group session" ${checked.has(m.id) ? 'checked' : ''}>
+      <span class="st">${live ? 'ACTIVE' : (m.talked ? 'RESUMES' : 'NEW')}</span>
+      <div class="ava">${m.emoji}</div>
+      <h3>${esc(m.name)}</h3>
+      <div class="role">${esc(m.role)}</div>
+      <div class="row2">
+        <button class="talk">${live ? '💬 Open chat' : (m.talked ? '▶ Resume convo' : '💬 Talk')}</button>
+        <button class="edit" title="edit teammate">✎</button>
+      </div>`;
+    el.querySelector('.talk').onclick = () => talkTo(m);
+    el.querySelector('.edit').onclick = () => editMate(m);
+    grid.appendChild(el);
+  }
+}
+
+async function talkTo(m) {
+  if (!SRV.terminal) return toast('⚠️ team chat needs the local cockpit — run start.command');
+  await ensureMateDir('.team/' + m.id, mateBrief(m));
+  openSession({ key: 'tm-' + m.id, title: m.emoji + ' ' + m.name, cwd: '.team/' + m.id, startCmd: m.talked ? 'claude --continue\r' : 'claude\r' });
+  if (!m.talked) { m.talked = true; touch(); }
+  renderTeam();
+}
+
+document.getElementById('groupBtn').onclick = async () => {
+  const ids = [...document.querySelectorAll('#teamGrid .pick')].filter(c => c.checked).map(c => c.dataset.id);
+  if (ids.length < 2) return toast('check ☑️ 2+ teammates first, then hit Group session');
+  if (!SRV.terminal) return toast('⚠️ team chat needs the local cockpit — run start.command');
+  const members = state.team.filter(m => ids.includes(m.id));
+  const key = 'group-' + ids.sort().join('-');
+  await ensureMateDir('.team/' + key, groupBrief(members));
+  const talked = !!state.groups[key];
+  openSession({ key: 'tm-' + key, title: '🗣️ ' + members.map(m => m.emoji).join(''), cwd: '.team/' + key, startCmd: talked ? 'claude --continue\r' : 'claude\r' });
+  if (!talked) { state.groups[key] = true; touch(); }
+};
+
+document.getElementById('addMateBtn').onclick = () => editMate(null);
+function editMate(m) {
+  const isNew = !m;
+  m = m || { id: '', name: '', emoji: '✨', color: 'purple', role: '', vibe: '', skills: '', talked: false };
+  openModal(`
+    <h3>${isNew ? '＋ New teammate' : '✎ ' + esc(m.name)}</h3>
+    <div class="row">
+      <div style="flex:0 0 90px"><label>Emoji</label><input id="tEmoji" value="${esc(m.emoji)}"></div>
+      <div><label>Name</label><input id="tName" value="${esc(m.name)}" placeholder="who they are"></div>
+    </div>
+    <div class="row"><div><label>Role (one line)</label><input id="tRole" value="${esc(m.role)}" placeholder="Sales closer — cold DMs, follow-ups, objections"></div></div>
+    <div class="row"><div><label>Personality / vibe</label><textarea id="tVibe" rows="3" placeholder="how they talk, how they think">${esc(m.vibe)}</textarea></div></div>
+    <div class="row"><div><label>Skills — what you go to them for</label><textarea id="tSkills" rows="3">${esc(m.skills)}</textarea></div></div>
+    <div class="row"><div><label>Color</label><div class="swRow">${Object.entries(COLORS).map(([n, c]) => `<div class="sw ${n === m.color ? 'on' : ''}" data-c="${n}" style="background:${c}"></div>`).join('')}</div></div></div>
+    <div class="btns">
+      <button class="pri" id="tSave">${isNew ? 'Add to team' : 'Save'}</button>
+      <button class="sec" id="tCancel">Cancel</button>
+      ${isNew ? '' : '<button class="dng" id="tDel">Remove</button>'}
+    </div>`);
+  let color = m.color;
+  document.querySelectorAll('#modal .sw').forEach(s => s.onclick = () => {
+    color = s.dataset.c;
+    document.querySelectorAll('#modal .sw').forEach(x => x.classList.toggle('on', x === s));
+  });
+  document.getElementById('tSave').onclick = () => {
+    const v = id => document.getElementById(id).value;
+    const upd = { name: v('tName') || 'Teammate', emoji: v('tEmoji') || '✨', role: v('tRole'), vibe: v('tVibe'), skills: v('tSkills'), color };
+    if (isNew) {
+      let id = slug(upd.name);
+      if (state.team.some(x => x.id === id)) id += '-' + uid().slice(0, 4);
+      state.team.push({ id, talked: false, ...upd });
+    } else Object.assign(state.team.find(x => x.id === m.id), upd);
+    touch(); closeModal(); renderTeam();
+  };
+  document.getElementById('tCancel').onclick = closeModal;
+  const dl = document.getElementById('tDel');
+  if (dl) dl.onclick = () => { state.team = state.team.filter(x => x.id !== m.id); touch(); closeModal(); renderTeam(); };
+  document.getElementById('tName').focus();
+}
+
 /* ═══════════════ UTIL + BOOT ═══════════════ */
+let toastT;
+function toast(msg) {
+  let el = document.getElementById('toast');
+  if (!el) { el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg;
+  requestAnimationFrame(() => el.classList.add('on'));
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2600);
+}
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
-loadState();
+window.addEventListener('beforeunload', e => { if (dirty && !SRV.api) { e.preventDefault(); e.returnValue = ''; } });
+loadState().then(detectServer);
 </script>
