@@ -1,5 +1,5 @@
 {
-  "savedAt": 1,
+  "savedAt": 1783190223410,
   "nodes": [
     {
       "id": "welcome1",
@@ -11,6 +11,92 @@
     }
   ],
   "edges": [],
-  "blocks": [],
-  "content": []
+  "blocks": [
+    {
+      "id": "u100fnt",
+      "date": "2026-07-04",
+      "start": 5,
+      "dur": 1,
+      "label": "Rotted",
+      "color": "green"
+    },
+    {
+      "id": "ud0d15r",
+      "date": "2026-07-04",
+      "start": 8,
+      "dur": 1,
+      "label": "Coding",
+      "color": "purple"
+    },
+    {
+      "id": "dw4tc1c",
+      "date": "2026-07-04",
+      "start": 12,
+      "dur": 1,
+      "label": "Coding",
+      "color": "green"
+    },
+    {
+      "id": "lp6ib89",
+      "date": "2026-07-04",
+      "start": 13,
+      "dur": 1,
+      "label": "Brain Dumping",
+      "color": "pink"
+    }
+  ],
+  "content": [],
+  "team": [
+    {
+      "id": "marcus",
+      "name": "Marcus",
+      "emoji": "🏗️",
+      "color": "blue",
+      "role": "The Builder — code, apps, tech, automation",
+      "vibe": "Calm senior-engineer energy. Explains simply, builds fast, zero jargon.",
+      "skills": "coding, debugging, app ideas, tech decisions, automating boring stuff",
+      "talked": true
+    },
+    {
+      "id": "sloane",
+      "name": "Sloane",
+      "emoji": "📈",
+      "color": "pink",
+      "role": "Marketing — content, hooks, brand, growth",
+      "vibe": "Sharp and trend-aware, allergic to boring. Thinks in hooks and thumbnails.",
+      "skills": "content ideas, titles/hooks, social strategy, branding, audience growth",
+      "talked": false
+    },
+    {
+      "id": "vera",
+      "name": "Vera",
+      "emoji": "💰",
+      "color": "green",
+      "role": "Money — business ops, pricing, deals",
+      "vibe": "Straight shooter. Margins first. Kills bad ideas fast, doubles down on good ones.",
+      "skills": "business models, pricing, negotiation, revenue ideas, cost-cutting",
+      "talked": false
+    },
+    {
+      "id": "sam",
+      "name": "Sam",
+      "emoji": "🧘",
+      "color": "purple",
+      "role": "Focus coach — ADHD accountability, planning",
+      "vibe": "Chill but firm. Breaks scary things into tiny next steps. Celebrates wins loudly.",
+      "skills": "time-blocking the week on the board, breaking down overwhelm, prioritizing, habit systems",
+      "talked": false
+    },
+    {
+      "id": "quinn",
+      "name": "Quinn",
+      "emoji": "✍️",
+      "color": "orange",
+      "role": "The Writer — scripts, posts, emails",
+      "vibe": "Punchy. Zero fluff. Writes like people actually talk.",
+      "skills": "video scripts, social posts, emails, bios, anything made of words",
+      "talked": false
+    }
+  ],
+  "groups": {}
 }

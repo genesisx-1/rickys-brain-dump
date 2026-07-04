@@ -11,12 +11,18 @@ Ricky has ADHD. Keep replies **short and punchy**. One thing at a time. No walls
 ```jsonc
 {
   "savedAt": 1720000000000,   // ⚠️ ALWAYS set to current epoch ms when you edit — the page only applies updates with a newer savedAt
-  "nodes": [                   // brain map cards
-    { "id": "abc1234", "x": 60, "y": 60, "title": "Card title", "body": "notes\nwith newlines", "color": "purple" }
+  "boards": [                  // multiple boards, Milanote-style
+    {
+      "id": "main", "name": "🧠 Main",
+      "nodes": [               // this board's cards
+        { "id": "abc1234", "x": 60, "y": 60, "title": "Card title", "body": "notes\nwith newlines", "color": "purple" }
+      ],
+      "edges": [               // lines connecting cards (same board only)
+        { "id": "e1", "a": "<node id>", "b": "<node id>" }
+      ]
+    }
   ],
-  "edges": [                   // lines connecting cards
-    { "id": "e1", "a": "<node id>", "b": "<node id>" }
-  ],
+  "activeBoard": "main",       // the board Ricky is looking at — add cards HERE unless he names another board; you may create new boards for big new topics
   "blocks": [                  // time blocks (Day/Week/Month planner)
     { "id": "b1", "date": "2026-07-04", "start": 9, "dur": 2, "label": "deep work", "color": "green" }
   ],

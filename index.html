@@ -53,7 +53,9 @@
   #mapToolbar button { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-weight: 600; }
   #mapToolbar button:hover { border-color: var(--accent); }
   #search { width: 190px; padding: 7px 12px; border-radius: 8px; background: var(--panel); }
-  #zoomCtl { position: absolute; bottom: 14px; right: 14px; z-index: 20; display: flex; flex-direction: column; gap: 6px; }
+  #zoomCtl { position: absolute; bottom: 92px; right: 16px; z-index: 20; display: flex; flex-direction: column; gap: 6px; }
+  #boardSel { padding: 7px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-weight: 700; max-width: 190px; cursor: pointer; }
+  #boardSel:hover { border-color: var(--accent); }
   #zoomCtl button { width: 38px; height: 38px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; font-size: 17px; font-weight: 700; }
   #hint { position: absolute; bottom: 14px; left: 14px; z-index: 20; font-size: 12px; color: var(--dim); background: var(--panel); border: 1px solid var(--line); padding: 6px 12px; border-radius: 8px; }
   #canvas { flex: 1; position: relative; overflow: hidden; cursor: grab;
@@ -155,10 +157,23 @@
   .transcript { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px; max-height: 320px; overflow: auto; font-size: 13.5px; line-height: 1.7; color: #c4cddb; white-space: pre-wrap; user-select: text; }
   .tip { font-size: 12px; color: var(--dim); background: var(--panel2); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
 
-  /* ─── Terminal drawer ─── */
-  #termBtn { padding: 7px 14px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; display: none; white-space: nowrap; }
-  #termBtn.open { border-color: var(--accent2); color: var(--accent2); }
-  #termDrawer { display: none; flex-direction: column; height: 320px; background: #0a0d12; border-top: 1px solid var(--line); flex-shrink: 0; }
+  /* ─── Terminal: floating button + panel (bottom right) ─── */
+  #termBtn {
+    position: fixed; right: 18px; bottom: 18px; z-index: 95;
+    width: 56px; height: 56px; border-radius: 50%; font-size: 23px;
+    background: linear-gradient(135deg, var(--accent), #9d7bff); color: #fff;
+    display: none; align-items: center; justify-content: center;
+    box-shadow: 0 8px 26px rgba(124,92,255,.5);
+  }
+  #termBtn:hover { transform: scale(1.08); }
+  #termBtn.open { background: var(--panel); border: 1.5px solid var(--accent2); box-shadow: 0 0 20px rgba(0,212,166,.35); }
+  #termDrawer {
+    position: fixed; right: 16px; bottom: 84px; z-index: 94;
+    width: min(640px, calc(100vw - 32px)); height: 460px; max-height: calc(100vh - 130px);
+    display: none; flex-direction: column; background: #0a0d12;
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    box-shadow: 0 24px 70px rgba(0,0,0,.65);
+  }
   #termDrawer.on { display: flex; }
   #termGrip { height: 6px; cursor: ns-resize; background: linear-gradient(90deg, transparent, var(--line), transparent); flex-shrink: 0; }
   #termGrip:hover { background: linear-gradient(90deg, transparent, var(--accent), transparent); }
@@ -223,13 +238,15 @@
   <div class="spacer"></div>
   <span id="saveStatus">loading…</span>
   <button id="focusBtn" title="25-min focus timer">🎯 Focus</button>
-  <button id="termBtn" title="Open Claude terminal">⌨️ Claude</button>
   <button id="saveBtn" title="Write data.json into the repo folder">💾 Save</button>
 </header>
 
 <!-- ═══ BRAIN MAP ═══ -->
 <div class="view on" id="mapView">
   <div id="mapToolbar">
+    <select id="boardSel" title="switch board"></select>
+    <button id="boardEditBtn" title="rename / delete this board">✎</button>
+    <button id="newBoardBtn" title="create a new board">＋ Board</button>
     <button id="newCardBtn">＋ New card</button>
     <button id="fitBtn">⛶ Fit</button>
     <input id="search" placeholder="🔍 search cards…">
@@ -284,7 +301,8 @@
   </div>
 </div>
 
-<!-- ═══ TERMINAL DRAWER ═══ -->
+<!-- ═══ TERMINAL: floating button + panel ═══ -->
+<button id="termBtn" title="Claude terminal — talk to your board">⌨️</button>
 <div id="termDrawer">
   <div id="termGrip" title="drag to resize"></div>
   <div id="termHead">
@@ -309,9 +327,16 @@ let dirty = false;
 
 const DEFAULT = () => ({
   savedAt: Date.now(),
-  nodes: [{ id: uid(), x: 60, y: 60, title: "Welcome to your brain 🧠", body: "Double-click anywhere to dump a thought.\nDrag my ● dot to another card to connect ideas.", color: 'purple' }],
-  edges: [], blocks: [], content: []
+  boards: [{ id: 'main', name: '🧠 Main', nodes: [{ id: uid(), x: 60, y: 60, title: "Welcome to your brain 🧠", body: "Double-click anywhere to dump a thought.\nDrag my ● dot to another card to connect ideas.", color: 'purple' }], edges: [] }],
+  activeBoard: 'main', blocks: [], content: []
 });
+
+/* the board currently on screen — all map ops go through this */
+function board() {
+  let b = state.boards.find(b => b.id === state.activeBoard);
+  if (!b) { b = state.boards[0]; state.activeBoard = b.id; }
+  return b;
+}
 
 async function loadState() {
   let local = null, remote = null;
@@ -321,10 +346,18 @@ async function loadState() {
   else state = local || remote || DEFAULT();
   normalize();
   setStatus('loaded ✓');
-  renderMap(); renderTime(); renderContent(); renderTeam();
+  renderBoards(); renderMap(); renderTime(); renderContent(); renderTeam();
 }
 function normalize() {
-  state.nodes ||= []; state.edges ||= []; state.blocks ||= []; state.content ||= [];
+  // migrate old flat nodes/edges → multi-board format
+  if (!state.boards) {
+    state.boards = [{ id: 'main', name: '🧠 Main', nodes: state.nodes || [], edges: state.edges || [] }];
+    delete state.nodes; delete state.edges;
+  }
+  if (!state.boards.length) state.boards.push({ id: 'main', name: '🧠 Main', nodes: [], edges: [] });
+  for (const b of state.boards) { b.nodes ||= []; b.edges ||= []; }
+  state.activeBoard ||= state.boards[0].id;
+  state.blocks ||= []; state.content ||= [];
   if (!state.team) state.team = DEFAULT_TEAM();
   state.groups ||= {};
 }
@@ -403,7 +436,7 @@ applyCam();
 
 function renderMap() {
   cardsEl.innerHTML = '';
-  for (const n of state.nodes) cardsEl.appendChild(makeCard(n));
+  for (const n of board().nodes) cardsEl.appendChild(makeCard(n));
   drawEdges();
   applySearch();
 }
@@ -453,14 +486,15 @@ function selectThing(type, id) {
 }
 
 function deleteNode(id) {
-  state.nodes = state.nodes.filter(n => n.id !== id);
-  state.edges = state.edges.filter(e => e.a !== id && e.b !== id);
+  const b = board();
+  b.nodes = b.nodes.filter(n => n.id !== id);
+  b.edges = b.edges.filter(e => e.a !== id && e.b !== id);
   sel = { type: null, id: null }; touch(); renderMap();
 }
 
 function addNode(wx, wy, title = '', body = '', color = 'purple') {
   const n = { id: uid(), x: wx, y: wy, title, body, color };
-  state.nodes.push(n); touch(); renderMap();
+  board().nodes.push(n); touch(); renderMap();
   const el = cardsEl.querySelector(`[data-id="${n.id}"]`);
   if (el) { selectThing('node', n.id); el.querySelector('.t').focus(); }
   return n;
@@ -511,8 +545,8 @@ function startConnect(n, e) {
     const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.card');
     if (target && target.dataset.id !== n.id) {
       const a = n.id, b = target.dataset.id;
-      if (!state.edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a))) {
-        state.edges.push({ id: uid(), a, b }); touch();
+      if (!board().edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a))) {
+        board().edges.push({ id: uid(), a, b }); touch();
       }
       drawEdges();
     }
@@ -532,8 +566,8 @@ function curve(x1, y1, x2, y2) {
 
 function drawEdges() {
   edgeG.querySelectorAll('.edge, .hit').forEach(p => p.remove());
-  for (const e of state.edges) {
-    const na = state.nodes.find(n => n.id === e.a), nb = state.nodes.find(n => n.id === e.b);
+  for (const e of board().edges) {
+    const na = board().nodes.find(n => n.id === e.a), nb = board().nodes.find(n => n.id === e.b);
     if (!na || !nb) continue;
     const A = nodeCenter(na), B = nodeCenter(nb);
     const d = curve(A.x, A.y, B.x, B.y);
@@ -573,8 +607,8 @@ document.getElementById('zin').onclick = () => { cam.z = Math.min(2.5, cam.z * 1
 document.getElementById('zout').onclick = () => { cam.z = Math.max(.2, cam.z / 1.2); applyCam(); };
 document.getElementById('fitBtn').onclick = fitView;
 function fitView() {
-  if (!state.nodes.length) return;
-  const xs = state.nodes.map(n => n.x), ys = state.nodes.map(n => n.y);
+  if (!board().nodes.length) { cam = { x: 40, y: 40, z: 1 }; applyCam(); return; }
+  const xs = board().nodes.map(n => n.x), ys = board().nodes.map(n => n.y);
   const minX = Math.min(...xs) - 60, minY = Math.min(...ys) - 60;
   const maxX = Math.max(...xs) + 300, maxY = Math.max(...ys) + 180;
   const r = canvas.getBoundingClientRect();
@@ -590,11 +624,51 @@ function applySearch() {
   const q = document.getElementById('search').value.trim().toLowerCase();
   document.querySelectorAll('.card').forEach(el => {
     if (!q) return el.classList.remove('dim');
-    const n = state.nodes.find(n => n.id === el.dataset.id);
+    const n = board().nodes.find(n => n.id === el.dataset.id);
     const hit = (n.title + ' ' + n.body).toLowerCase().includes(q);
     el.classList.toggle('dim', !hit);
   });
 }
+
+/* ── boards (Milanote-style) ── */
+function renderBoards() {
+  const sel = document.getElementById('boardSel');
+  sel.innerHTML = state.boards.map(b => `<option value="${b.id}" ${b.id === state.activeBoard ? 'selected' : ''}>${esc(b.name)}</option>`).join('');
+}
+document.getElementById('boardSel').onchange = e => {
+  state.activeBoard = e.target.value;
+  sel = { type: null, id: null };
+  touch(); renderMap(); fitView();
+};
+document.getElementById('newBoardBtn').onclick = () => {
+  openModal(`<h3>＋ New board</h3>
+    <div class="row"><div><label>Name</label><input id="bName" placeholder="Business ideas, Content plan, Life…"></div></div>
+    <div class="btns"><button class="pri" id="bSave">Create</button><button class="sec" id="bCancel">Cancel</button></div>`);
+  document.getElementById('bSave').onclick = () => {
+    const b = { id: uid(), name: document.getElementById('bName').value.trim() || 'New board', nodes: [], edges: [] };
+    state.boards.push(b); state.activeBoard = b.id;
+    touch(); closeModal(); renderBoards(); renderMap(); fitView();
+    toast('🗂️ board created — double-click to start dumping');
+  };
+  document.getElementById('bCancel').onclick = closeModal;
+  document.getElementById('bName').focus();
+};
+document.getElementById('boardEditBtn').onclick = () => {
+  const b = board();
+  openModal(`<h3>✎ Board</h3>
+    <div class="row"><div><label>Name</label><input id="bName" value="${esc(b.name)}"></div></div>
+    <div class="btns"><button class="pri" id="bSave">Save</button><button class="sec" id="bCancel">Cancel</button>
+    ${state.boards.length > 1 ? '<button class="dng" id="bDel">Delete board</button>' : ''}</div>`);
+  document.getElementById('bSave').onclick = () => { b.name = document.getElementById('bName').value.trim() || b.name; touch(); closeModal(); renderBoards(); };
+  document.getElementById('bCancel').onclick = closeModal;
+  const dl = document.getElementById('bDel');
+  if (dl) dl.onclick = () => {
+    if (!confirm(`Delete "${b.name}" and its ${b.nodes.length} card(s)? This can't be undone.`)) return;
+    state.boards = state.boards.filter(x => x.id !== b.id);
+    state.activeBoard = state.boards[0].id;
+    touch(); closeModal(); renderBoards(); renderMap(); fitView();
+  };
+};
 
 /* delete key */
 document.addEventListener('keydown', e => {
@@ -602,7 +676,7 @@ document.addEventListener('keydown', e => {
   const a = document.activeElement;
   if (a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName))) return;
   if (sel.type === 'node') { e.preventDefault(); deleteNode(sel.id); }
-  if (sel.type === 'edge') { e.preventDefault(); state.edges = state.edges.filter(x => x.id !== sel.id); sel = { type: null, id: null }; touch(); drawEdges(); }
+  if (sel.type === 'edge') { e.preventDefault(); board().edges = board().edges.filter(x => x.id !== sel.id); sel = { type: null, id: null }; touch(); drawEdges(); }
 });
 
 /* ═══════════════ TIME BLOCKS ═══════════════ */
@@ -766,8 +840,8 @@ function viewVideo(v) {
   const tc = document.getElementById('vToCard');
   if (tc) tc.onclick = () => {
     const s = window.getSelection().toString().trim();
-    if (!s) return alert('Highlight some transcript text first');
-    const ys = state.nodes.length ? Math.max(...state.nodes.map(n => n.y)) + 140 : 60;
+    if (!s) return toast('✂️ highlight some transcript text first');
+    const ys = board().nodes.length ? Math.max(...board().nodes.map(n => n.y)) + 140 : 60;
     addNode(60, ys, '💡 ' + v.title, s.slice(0, 400), 'yellow');
     tc.textContent = '✓ card added!';
     setTimeout(() => tc.textContent = '✂️ Selection → Brain Map', 1500);
@@ -814,7 +888,7 @@ async function detectServer() {
       if (j.live) connectEvents();
     }
   } catch {}
-  if (SRV.terminal) document.getElementById('termBtn').style.display = '';
+  if (SRV.terminal) document.getElementById('termBtn').style.display = 'flex';
   if (!SRV.api) setInterval(refreshFromFile, 5000); // fallback: poll for file changes
   renderTeam();
 }
@@ -832,7 +906,7 @@ async function refreshFromFile() {
       state = remote;
       normalize();
       localStorage.setItem('rbd', JSON.stringify(state));
-      renderMap(); renderTime(); renderContent(); renderTeam();
+      renderBoards(); renderMap(); renderTime(); renderContent(); renderTeam();
       toast('🤖 board updated live');
     }
   } catch {}
