@@ -55,8 +55,20 @@
   }
   #mapToolbar button { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-weight: 600; }
   #mapToolbar button:hover { border-color: var(--accent); }
+  #mapToolbar button:disabled { opacity: .42; cursor: default; }
+  #mapToolbar button:disabled:hover { border-color: var(--line); }
   #search { width: 190px; padding: 7px 12px; border-radius: 8px; background: var(--panel); }
   #zoomCtl { position: absolute; bottom: 92px; right: 16px; z-index: 20; display: flex; flex-direction: column; gap: 6px; }
+  #activeWorkBadge {
+    position: absolute; right: 16px; bottom: 148px; z-index: 24;
+    display: none; min-width: 220px; max-width: 320px; padding: 10px 12px;
+    background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent2);
+    border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.48); cursor: pointer;
+  }
+  #activeWorkBadge.on { display: block; }
+  #activeWorkBadge .awTime { font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+  #activeWorkBadge .awTask { margin-top: 5px; font-size: 13px; font-weight: 800; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #activeWorkBadge .awProject { margin-top: 1px; color: var(--dim); font-size: 12px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   #boardSel { padding: 7px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-weight: 700; max-width: 190px; cursor: pointer; }
   #boardSel:hover { border-color: var(--accent); }
   #crumbs { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: var(--dim); white-space: nowrap; max-width: 320px; overflow: hidden; }
@@ -130,6 +142,13 @@
     border: 3px solid var(--card-c, var(--accent)); box-shadow: 0 8px 24px rgba(0,0,0,.42);
     position: relative; margin: 0 auto 10px; cursor: grab;
   }
+  .boardOpenBtn {
+    position: absolute; right: -8px; bottom: -8px; z-index: 2;
+    width: 34px; height: 34px; border-radius: 50%; background: var(--text); color: var(--bg);
+    border: 3px solid var(--bg); display: grid; place-items: center;
+    font-size: 17px; font-weight: 900; box-shadow: 0 8px 18px rgba(0,0,0,.45);
+  }
+  .boardOpenBtn:hover { transform: scale(1.06); }
   .boardThumb::before {
     content: ""; position: absolute; inset: 18px; border-radius: 18px;
     background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.02));
@@ -388,6 +407,8 @@
     <button id="newBoardBtn" title="create a draggable board tile on this canvas">＋ Board</button>
     <button id="subBoardBtn" title="group selected cards into a nested sub-board (or make an empty one)">📦 Sub-board</button>
     <button id="newCardBtn">＋ New card</button>
+    <button id="undoBtn" title="undo">↶</button>
+    <button id="redoBtn" title="redo">↷</button>
     <button id="fitBtn">⛶ Fit</button>
     <button id="exportBtn" title="export this board">⬇ Export</button>
     <input id="search" placeholder="🔍 search cards…">
@@ -416,6 +437,11 @@
   <input id="filePick" type="file" hidden>
   <div id="zoomCtl">
     <button id="zin">＋</button><button id="zout">－</button>
+  </div>
+  <div id="activeWorkBadge" title="open Clock">
+    <div class="awTime" id="awTime">00:00:00</div>
+    <div class="awTask" id="awTask"></div>
+    <div class="awProject" id="awProject"></div>
   </div>
   <div id="hint">double-click = new card · drag cards onto a board tile to move them inside · Delete key removes selection</div>
 </div>
@@ -516,6 +542,8 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 let state = null;
 let fileHandle = null;
 let dirty = false;
+let undoStack = [], redoStack = [], historyBaseline = null, restoringHistory = false;
+const HISTORY_LIMIT = 80;
 
 const DEFAULT = () => ({
   savedAt: Date.now(),
@@ -537,8 +565,10 @@ async function loadState() {
   if (local && remote) state = (local.savedAt || 0) >= (remote.savedAt || 0) ? local : remote;
   else state = local || remote || DEFAULT();
   normalize();
+  historyBaseline = snapshotState();
   setStatus('loaded ✓');
   renderBoards(); renderMap(); renderTime(); renderWorkLog(); renderContent(); renderTeam();
+  updateHistoryButtons();
 }
 function normalize() {
   // migrate old flat nodes/edges → multi-board format
@@ -557,13 +587,56 @@ function normalize() {
 
 let saveTimer;
 function touch() {
-  state.savedAt = Date.now(); dirty = true;
+  state.savedAt = Date.now();
+  recordHistory();
+  dirty = true;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     localStorage.setItem('rbd', JSON.stringify(state));
     if (SRV.api) serverAutosave();
     else setStatus('● saved in browser — hit 💾 Save to sync file', true);
   }, 350);
+}
+
+function snapshotState() { return JSON.stringify(state); }
+function recordHistory() {
+  if (restoringHistory || !state) return;
+  const current = snapshotState();
+  if (!historyBaseline) { historyBaseline = current; updateHistoryButtons(); return; }
+  if (current === historyBaseline) return;
+  undoStack.push(historyBaseline);
+  if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  redoStack = [];
+  historyBaseline = current;
+  updateHistoryButtons();
+}
+function restoreSnapshot(json) {
+  restoringHistory = true;
+  state = JSON.parse(json);
+  normalize();
+  historyBaseline = snapshotState();
+  selectedNodes = new Set(); selectedEdge = null; lineModeFrom = null; setMapTool(null);
+  renderBoards(); renderMap(); renderTime(); renderWorkLog(); renderContent(); renderTeam();
+  localStorage.setItem('rbd', JSON.stringify(state));
+  if (SRV.api) serverAutosave();
+  else setStatus('● restored in browser — hit 💾 Save to sync file', true);
+  restoringHistory = false;
+  updateHistoryButtons();
+}
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(snapshotState());
+  restoreSnapshot(undoStack.pop());
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(snapshotState());
+  restoreSnapshot(redoStack.pop());
+}
+function updateHistoryButtons() {
+  const u = document.getElementById('undoBtn'), r = document.getElementById('redoBtn');
+  if (u) u.disabled = !undoStack.length;
+  if (r) r.disabled = !redoStack.length;
 }
 
 /* when the local server is running, everything syncs to data.json automatically */
@@ -629,6 +702,7 @@ let cardClipboard = null;
 let lineModeFrom = null;
 let mapTool = null;
 let suppressPaletteClick = false;
+let suppressToolbarClick = false;
 
 function applyCam() { world.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`; }
 applyCam();
@@ -693,6 +767,18 @@ function makeCard(n) {
 function makeBoardTile(n) {
   const child = state.boards.find(x => x.id === n.boardRef);
   const el = document.createElement('div');
+  let lastOpenClick = 0;
+  const maybeOpen = e => {
+    const now = Date.now();
+    if (now - lastOpenClick < 360) {
+      e.preventDefault(); e.stopPropagation();
+      openBoard(n.boardRef, n);
+      lastOpenClick = 0;
+      return true;
+    }
+    lastOpenClick = now;
+    return false;
+  };
   el.className = 'card boardTile';
   if (!seenNodes.has(n.id)) { el.classList.add('pop'); seenNodes.add(n.id); }
   el.dataset.id = n.id;
@@ -707,7 +793,7 @@ function makeBoardTile(n) {
     tools.appendChild(s);
   }
   const open = document.createElement('button'); open.className = 'open'; open.textContent = '⤢'; open.title = 'open board';
-  open.onclick = e => { e.stopPropagation(); openBoard(n.boardRef); };
+  open.onclick = e => { e.stopPropagation(); openBoard(n.boardRef, n); };
   tools.appendChild(open);
   const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕'; del.title = 'delete board tile';
   del.onclick = e => { e.stopPropagation(); deleteNodes([n.id]); };
@@ -715,6 +801,13 @@ function makeBoardTile(n) {
   el.appendChild(tools);
 
   const thumb = document.createElement('div'); thumb.className = 'boardThumb';
+  const openThumb = document.createElement('button');
+  openThumb.className = 'boardOpenBtn';
+  openThumb.textContent = '⤢';
+  openThumb.title = 'open board';
+  openThumb.onmousedown = e => e.stopPropagation();
+  openThumb.onclick = e => { e.stopPropagation(); openBoard(n.boardRef, n); };
+  thumb.appendChild(openThumb);
   el.appendChild(thumb);
 
   const title = document.createElement('div'); title.className = 'boardTitle'; title.contentEditable = true; title.textContent = n.title || child?.name || 'New Board';
@@ -723,7 +816,8 @@ function makeBoardTile(n) {
     if (child) { child.name = n.title; renderBoards(); }
     touch();
   };
-  title.onmousedown = e => e.stopPropagation();
+  title.onmousedown = e => { if (!maybeOpen(e)) e.stopPropagation(); };
+  title.ondblclick = e => { e.preventDefault(); e.stopPropagation(); openBoard(n.boardRef, n); };
   title.onfocus = () => selectNode(n.id);
   el.appendChild(title);
 
@@ -735,9 +829,10 @@ function makeBoardTile(n) {
   dot.onmousedown = e => { e.stopPropagation(); e.preventDefault(); startConnect(n, e); };
   el.appendChild(dot);
 
-  el.ondblclick = e => { if (e.target === title) return; openBoard(n.boardRef); };
+  el.ondblclick = e => { e.preventDefault(); openBoard(n.boardRef, n); };
   el.onmousedown = e => {
     e.stopPropagation();
+    if (!e.target.closest('.cardTools, .dot, .boardOpenBtn') && maybeOpen(e)) return;
     if (lineModeFrom) { handleLinePick(n.id); return; }
     const additive = e.shiftKey || e.metaKey || e.ctrlKey;
     if (additive) { selectNode(n.id, true); return; }
@@ -796,9 +891,14 @@ canvas.addEventListener('dblclick', e => {
   addNode((e.clientX - r.left - cam.x) / cam.z - 115, (e.clientY - r.top - cam.y) / cam.z - 20);
 });
 document.getElementById('newCardBtn').onclick = () => {
+  if (suppressToolbarClick) return;
   const r = canvas.getBoundingClientRect();
   addNode((r.width / 2 - cam.x) / cam.z - 115 + Math.random() * 40, (r.height / 2 - cam.y) / cam.z - 30 + Math.random() * 40);
 };
+document.getElementById('newCardBtn').onmousedown = e => startToolbarDrag('note', e, () => {
+  const c = centerWorld();
+  return addNode(c.x - 115, c.y - 35, 'New note', '', 'purple');
+});
 
 document.querySelectorAll('#mapPalette .toolBtn').forEach(btn => {
   btn.onmousedown = e => startPaletteDrag(btn, e);
@@ -817,6 +917,14 @@ document.getElementById('filePick').onchange = e => {
   if (file) addFileCard(file);
   e.target.value = '';
 };
+
+document.getElementById('newBoardBtn').onmousedown = e => startToolbarDrag('board', e, () => {
+  const c = centerWorld();
+  return createBoardTile('New Board', [], [], c.x - 90, c.y - 80, true);
+});
+document.getElementById('subBoardBtn').onmousedown = e => startToolbarDrag('subboard', e, () => {
+  createSubBoardDialog();
+});
 
 function usePaletteTool(tool) {
   const c = centerWorld();
@@ -864,6 +972,51 @@ function startPaletteDrag(btn, e) {
       }
       setTimeout(() => { suppressPaletteClick = false; }, 0);
     }
+  };
+  document.addEventListener('mousemove', mv);
+  document.addEventListener('mouseup', up);
+}
+
+function startToolbarDrag(tool, e, clickFallback) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const sx = e.clientX, sy = e.clientY;
+  let ghost = null, dragging = false, dropped = false;
+  const mv = ev => {
+    const dist = Math.hypot(ev.clientX - sx, ev.clientY - sy);
+    if (!dragging && dist > 6) {
+      dragging = true;
+      suppressToolbarClick = true;
+      ghost = document.createElement('div');
+      ghost.className = 'toolGhost';
+      ghost.textContent = tool === 'board' ? 'Board' : tool === 'subboard' ? 'Sub-board' : 'New card';
+      document.body.appendChild(ghost);
+      document.body.style.userSelect = 'none';
+    }
+    if (ghost) { ghost.style.left = ev.clientX + 'px'; ghost.style.top = ev.clientY + 'px'; }
+  };
+  const up = ev => {
+    document.removeEventListener('mousemove', mv);
+    document.removeEventListener('mouseup', up);
+    document.body.style.userSelect = '';
+    if (ghost) ghost.remove();
+    if (dragging) {
+      const r = canvas.getBoundingClientRect();
+      if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) {
+        const wx = (ev.clientX - r.left - cam.x) / cam.z;
+        const wy = (ev.clientY - r.top - cam.y) / cam.z;
+        if (tool === 'note') addNode(wx - 115, wy - 35, 'New note', '', 'purple');
+        else if (tool === 'board') createBoardTile('New Board', [], [], wx - 90, wy - 80, true);
+        else if (tool === 'subboard') createBoardTile('Sub-board', [], [], wx - 90, wy - 80, true);
+        dropped = true;
+      }
+    }
+    if (!dragging && clickFallback) {
+      suppressToolbarClick = true;
+      clickFallback();
+    }
+    if (dropped) touch();
+    setTimeout(() => { suppressToolbarClick = false; }, 0);
   };
   document.addEventListener('mousemove', mv);
   document.addEventListener('mouseup', up);
@@ -1118,6 +1271,8 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 document.getElementById('zin').onclick = () => { cam.z = Math.min(2.5, cam.z * 1.2); applyCam(); };
 document.getElementById('zout').onclick = () => { cam.z = Math.max(.2, cam.z / 1.2); applyCam(); };
+document.getElementById('undoBtn').onclick = undo;
+document.getElementById('redoBtn').onclick = redo;
 document.getElementById('fitBtn').onclick = fitView;
 function fitView() {
   if (!board().nodes.length) { cam = { x: 40, y: 40, z: 1 }; applyCam(); return; }
@@ -1170,8 +1325,16 @@ function renderCrumbs() {
     `<span class="crumb${i === path.length - 1 ? ' cur' : ''}" data-id="${b.id}">${esc(b.name)}</span>`).join('');
   el.querySelectorAll('.crumb:not(.cur)').forEach(c => c.onclick = () => openBoard(c.dataset.id));
 }
-function openBoard(id) {
-  if (!state.boards.some(b => b.id === id)) { toast('⚠️ that sub-board was deleted'); return; }
+function openBoard(id, portalNode = null) {
+  if (!state.boards.some(b => b.id === id)) {
+    if (!portalNode) { toast('⚠️ that sub-board was deleted'); return; }
+    const repaired = { id: id || uid(), name: portalNode.title || 'Recovered board', parentBoard: board().id, nodes: [], edges: [] };
+    portalNode.boardRef = repaired.id;
+    state.boards.push(repaired);
+    id = repaired.id;
+    touch(); renderBoards();
+    toast('repaired missing board');
+  }
   state.activeBoard = id;
   clearSelection(); renderBoards(); renderMap(); fitView();
 }
@@ -1180,6 +1343,7 @@ document.getElementById('boardSel').onchange = e => {
   clearSelection(); touch(); renderBoards(); renderMap(); fitView();
 };
 document.getElementById('newBoardBtn').onclick = () => {
+  if (suppressToolbarClick) return;
   const r = canvas.getBoundingClientRect();
   const x = (r.width / 2 - cam.x) / cam.z - 90 + Math.random() * 36;
   const y = (r.height / 2 - cam.y) / cam.z - 80 + Math.random() * 36;
@@ -1205,6 +1369,11 @@ document.getElementById('boardEditBtn').onclick = () => {
 
 /* nested sub-boards — group selected cards into their own board, collapsed into one tile */
 document.getElementById('subBoardBtn').onclick = () => {
+  if (suppressToolbarClick) return;
+  createSubBoardDialog();
+};
+
+function createSubBoardDialog() {
   const ids = [...selectedNodes];
   openModal(`<h3>📦 ${ids.length ? 'Group into sub-board' : 'New sub-board'}</h3>
     <div class="row"><div><label>Name</label><input id="sbName" placeholder="Phase 2, Content ideas…"></div></div>
@@ -1233,7 +1402,7 @@ document.getElementById('subBoardBtn').onclick = () => {
     closeModal(); fitView();
   };
   document.getElementById('sbName').focus();
-};
+}
 
 function createBoardTile(name, childNodes = [], childEdges = [], x = 60, y = 60, focusTitle = false) {
   const parent = board();
@@ -1318,6 +1487,21 @@ function exportBoardPNG() {
   img.src = url;
 }
 
+/* undo / redo — keeps native text undo inside editable fields */
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  const key = e.key.toLowerCase();
+  if (key !== 'z' && key !== 'y') return;
+  if (isTextEditingTarget(document.activeElement)) return;
+  e.preventDefault();
+  if (key === 'y' || (key === 'z' && e.shiftKey)) redo();
+  else undo();
+});
+
+function isTextEditingTarget(el) {
+  return !!(el && (el.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(el.tagName)));
+}
+
 /* delete key — works on the whole multi-selection */
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && (lineModeFrom || mapTool)) {
@@ -1328,7 +1512,7 @@ document.addEventListener('keydown', e => {
   }
   if (e.key !== 'Delete' && e.key !== 'Backspace') return;
   const a = document.activeElement;
-  if (a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName))) return;
+  if (isTextEditingTarget(a)) return;
   if (selectedNodes.size) { e.preventDefault(); deleteNodes([...selectedNodes]); }
   else if (selectedEdge) { e.preventDefault(); board().edges = board().edges.filter(x => x.id !== selectedEdge); selectedEdge = null; touch(); drawEdges(); }
 });
@@ -1409,14 +1593,16 @@ let logTicker = null;
 document.getElementById('logToggle').onclick = () => state.activeWork ? stopWorkTimer() : startWorkTimer();
 document.getElementById('manualLogBtn').onclick = () => manualLogModal();
 document.getElementById('exportLogBtn').onclick = exportWorkLogCSV;
+document.getElementById('activeWorkBadge').onclick = () => document.querySelector('nav button[data-v="log"]').click();
 
 function renderWorkLog() {
   renderLogSuggestions();
   renderTimer();
+  renderActiveWorkBadge();
   renderLogStats();
   renderLogList();
   clearInterval(logTicker);
-  if (state?.activeWork) logTicker = setInterval(() => { renderTimer(); renderLogStats(); }, 1000);
+  if (state?.activeWork) logTicker = setInterval(() => { renderTimer(); renderActiveWorkBadge(); renderLogStats(); }, 1000);
 }
 
 function renderLogSuggestions() {
@@ -1474,6 +1660,16 @@ function renderTimer() {
   btn.textContent = 'Stop'; btn.className = 'stop';
   read.textContent = fmtTimer((Date.now() - new Date(state.activeWork.start).getTime()) / 1000);
   meta.innerHTML = `<b>${esc(state.activeWork.task)}</b><br>${esc(state.activeWork.project)} · started ${new Date(state.activeWork.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+function renderActiveWorkBadge() {
+  const badge = document.getElementById('activeWorkBadge');
+  if (!badge) return;
+  if (!state.activeWork) { badge.classList.remove('on'); return; }
+  badge.classList.add('on');
+  document.getElementById('awTime').textContent = fmtTimer((Date.now() - new Date(state.activeWork.start).getTime()) / 1000);
+  document.getElementById('awTask').textContent = state.activeWork.task || 'Focus block';
+  document.getElementById('awProject').textContent = state.activeWork.project || 'Work';
 }
 
 function renderLogStats() {
@@ -1807,8 +2003,9 @@ async function refreshFromFile() {
     if ((remote.savedAt || 0) > (state?.savedAt || 0)) {
       state = remote;
       normalize();
+      undoStack = []; redoStack = []; historyBaseline = snapshotState(); updateHistoryButtons();
       localStorage.setItem('rbd', JSON.stringify(state));
-      renderBoards(); renderMap(); renderTime(); renderContent(); renderTeam();
+      renderBoards(); renderMap(); renderTime(); renderWorkLog(); renderContent(); renderTeam();
       toast('🤖 board updated live');
     }
   } catch {}
@@ -1819,7 +2016,7 @@ async function refreshFromFile() {
 const AGENTS = {
   claude: { name: 'Claude', emoji: '🧠', cmd: 'claude', cont: 'claude --continue', install: 'npm i -g @anthropic-ai/claude-code' },
   codex:  { name: 'Codex',  emoji: '⚡', cmd: 'codex',  cont: 'codex resume --last', install: 'npm i -g @openai/codex' },
-  gemini: { name: 'Gemini', emoji: '✨', cmd: 'gemini', cont: 'gemini',              install: 'npm i -g @google/gemini-cli' },
+  antigravity: { name: 'Antigravity', emoji: '🚀', cmd: 'agy --dangerously-skip-permissions', cont: 'agy --continue --dangerously-skip-permissions', install: 'curl -fsSL https://antigravity.google/cli/install.sh | bash' },
 };
 const prefEngine = () => (SRV.agents[localStorage.getItem('rbd-engine')] ? localStorage.getItem('rbd-engine') : firstAgent());
 const firstAgent = () => Object.keys(AGENTS).find(k => SRV.agents[k]) || 'claude';
@@ -1981,7 +2178,7 @@ ${m.skills}
 - When your advice produces ideas/tasks worth keeping, PUT THEM ON THE BOARD, don't just talk. Sign card bodies "— ${m.name}".
 ${BOARD_RULES}`;
 }
-/* self-contained board spec so ANY model (Claude/Codex/Gemini) can drive the board */
+/* self-contained board spec so ANY model (Claude/Codex/Antigravity) can drive the board */
 const BOARD_RULES = `
 ## Your shared board — file is \`../../data.json\` (edit it and Ricky sees changes live)
 Shape: \`{ savedAt, boards:[{id,name,nodes:[{id,x,y,title,body,color}],edges:[{id,a,b}]}], activeBoard, blocks:[{id,date,start,dur,label,color}], content:[], team:[], groups:{} }\`

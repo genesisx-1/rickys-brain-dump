@@ -25,7 +25,7 @@ try { ({ WebSocketServer } = require('ws')); } catch { console.warn('⚠️  ws 
 
 /* which AI CLIs are installed? (checked through the login shell so PATH matches the terminal) */
 const { execFileSync } = require('child_process');
-const AGENT_CMDS = { claude: 'claude', codex: 'codex', gemini: 'gemini' };
+const AGENT_CMDS = { claude: 'claude', codex: 'codex', antigravity: 'agy' };
 let AGENTS_AVAIL = null;
 function detectAgents() {
   if (AGENTS_AVAIL) return AGENTS_AVAIL;
@@ -60,8 +60,8 @@ const server = http.createServer((req, res) => {
         if (!/^\.team\/[a-z0-9][a-z0-9-]*$/.test(dir)) throw new Error('bad dir');
         const full = path.join(ROOT, dir);
         fs.mkdirSync(full, { recursive: true });
-        // write persona to every CLI's convention so Claude/Codex/Gemini all pick it up
-        for (const fn of ['CLAUDE.md', 'AGENTS.md', 'GEMINI.md']) fs.writeFileSync(path.join(full, fn), String(brief || ''));
+        // write persona to every CLI's convention so Claude/Codex/Antigravity all pick it up
+        for (const fn of ['CLAUDE.md', 'AGENTS.md']) fs.writeFileSync(path.join(full, fn), String(brief || ''));
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end('{"ok":true}');
       } catch (e) {
