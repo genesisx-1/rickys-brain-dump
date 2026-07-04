@@ -175,6 +175,7 @@
     box-shadow: 0 24px 70px rgba(0,0,0,.65);
   }
   #termDrawer.on { display: flex; }
+  #termDrawer.max { width: calc(100vw - 32px); height: calc(100vh - 116px) !important; }
   #termGrip { height: 6px; cursor: ns-resize; background: linear-gradient(90deg, transparent, var(--line), transparent); flex-shrink: 0; }
   #termGrip:hover { background: linear-gradient(90deg, transparent, var(--accent), transparent); }
   #termHead { display: flex; align-items: center; gap: 8px; padding: 5px 10px 0; flex-shrink: 0; }
@@ -318,6 +319,7 @@
   <div id="termHead">
     <div id="termTabs"></div>
     <button id="termAdd" title="new session — pick a model">＋</button>
+    <button id="termMax" title="expand / shrink">⛶</button>
     <button id="termClose" title="hide panel">▾ hide</button>
   </div>
   <div id="agentMenu"></div>
@@ -329,6 +331,7 @@
 
 <script src="vendor/xterm.js"></script>
 <script src="vendor/addon-fit.js"></script>
+<script src="vendor/addon-webgl.js"></script>
 <script>
 /* ═══════════════ STATE ═══════════════ */
 const COLORS = { purple:'#7c5cff', green:'#00d4a6', blue:'#3da5ff', orange:'#ff9f43', pink:'#ff6bcb', yellow:'#ffd166', red:'#ff5470', gray:'#5c6a80' };
@@ -948,6 +951,10 @@ document.getElementById('termBtn').onclick = () => {
   openSession({ key: 'main', title: AGENTS[e].emoji + ' ' + AGENTS[e].name, cwd: null, engine: e });
 };
 document.getElementById('termClose').onclick = hideDrawer;
+document.getElementById('termMax').onclick = () => {
+  termDrawer.classList.toggle('max');
+  if (activeKey) requestAnimationFrame(() => sessions[activeKey].fit.fit());
+};
 function hideDrawer() { termDrawer.classList.remove('on'); document.getElementById('termBtn').classList.remove('open'); document.getElementById('agentMenu').classList.remove('on'); }
 
 /* ＋ button → pick which model to launch in a fresh session */
@@ -980,17 +987,20 @@ function openSession(o) {
   showDrawer();
   let s = sessions[o.key];
   if (!s) {
-    const pane = document.createElement('div'); pane.className = 'tpane';
+    const pane = document.createElement('div'); pane.className = 'tpane on';
+    for (const p of document.querySelectorAll('#termHost .tpane')) p.classList.remove('on');
     document.getElementById('termHost').appendChild(pane);
     const term = new Terminal({
-      fontSize: 13.5, fontFamily: '"SF Mono", Menlo, monospace', cursorBlink: true, scrollback: 4000,
+      fontSize: 13, fontFamily: '"SF Mono", Menlo, monospace', cursorBlink: true, scrollback: 4000,
       theme: { background: '#10141b', foreground: '#e8ecf3', cursor: '#7c5cff', cursorAccent: '#10141b', selectionBackground: '#7c5cff55' }
     });
     const fit = new FitAddon.FitAddon();
     term.loadAddon(fit); term.open(pane);
+    try { term.loadAddon(new WebglAddon.WebglAddon()); } catch {} // GPU renderer; falls back to DOM if unavailable
     s = sessions[o.key] = { key: o.key, title: o.title, cwd: o.cwd, engine: o.engine || 'claude', term, fit, pane, ws: null };
     term.onData(d => { if (s.ws && s.ws.readyState === 1) s.ws.send(JSON.stringify({ type: 'in', data: d })); });
     term.onResize(({ cols, rows }) => { if (s.ws && s.ws.readyState === 1) s.ws.send(JSON.stringify({ type: 'resize', cols, rows })); });
+    fit.fit(); // pane is visible + fitted BEFORE connecting, so the pty spawns at the real size
     connectSession(s, launchCmd(s.engine, o.resume));
   } else if (!s.ws || s.ws.readyState > 1) {
     connectSession(s, launchCmd(s.engine, true)); // session died → pick the convo back up
@@ -999,10 +1009,14 @@ function openSession(o) {
 }
 
 function connectSession(s, startCmd) {
-  const q = s.cwd ? '?cwd=' + encodeURIComponent(s.cwd) : '';
-  const ws = s.ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/term' + q);
+  const q = new URLSearchParams();
+  if (s.cwd) q.set('cwd', s.cwd);
+  q.set('cols', s.term.cols); q.set('rows', s.term.rows);
+  const ws = s.ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/term?' + q);
   ws.onopen = () => {
     s.fit.fit();
+    // explicit size handshake — never trust that fit() fired onResize
+    ws.send(JSON.stringify({ type: 'resize', cols: s.term.cols, rows: s.term.rows }));
     if (startCmd) setTimeout(() => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'in', data: startCmd })), 1200);
     renderTabs(); renderTeam();
   };

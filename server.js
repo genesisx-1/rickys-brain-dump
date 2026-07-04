@@ -122,19 +122,22 @@ if (WebSocketServer) {
     }, 150);
   });
 
-  // terminal sessions — ?cwd=.team/<name> runs the session in a teammate's dir
+  // terminal sessions — ?cwd=.team/<name> runs in a teammate's dir; cols/rows = client's real size
   wssTerm.on('connection', (ws, req) => {
     const shell = process.env.SHELL || '/bin/zsh';
-    let cwd = ROOT;
+    let cwd = ROOT, cols = 120, rows = 28;
     try {
-      const want = new URL(req.url, 'http://x').searchParams.get('cwd');
+      const q = new URL(req.url, 'http://x').searchParams;
+      const want = q.get('cwd');
       if (want && /^\.team\/[a-z0-9][a-z0-9-]*$/.test(want)) {
         const full = path.join(ROOT, want);
         if (fs.existsSync(full)) cwd = full;
       }
+      cols = Math.min(500, Math.max(20, parseInt(q.get('cols')) || 120));
+      rows = Math.min(200, Math.max(5, parseInt(q.get('rows')) || 28));
     } catch {}
     const term = pty.spawn(shell, ['-il'], {
-      name: 'xterm-256color', cols: 120, rows: 28, cwd,
+      name: 'xterm-256color', cols, rows, cwd,
       env: { ...process.env, TERM_PROGRAM: 'rickys-brain-dump' },
     });
     term.onData(d => { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'out', data: d })); });
