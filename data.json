@@ -1,5 +1,5 @@
 {
-  "savedAt": 1783193992947,
+  "savedAt": 1783195105354,
   "blocks": [
     {
       "id": "u100fnt",
@@ -238,7 +238,7 @@
         },
         {
           "id": "startup50fail",
-          "x": 38.58033289822819,
+          "x": 88.71570574878024,
           "y": 115.56408283652573,
           "title": "Startup Cost (50% Fail Rate)",
           "body": "2 accounts: need 4 funded = $400\n8 accounts: need 16 funded = $1,600\n16 accounts: need 32 funded = $3,200\n(@ $100/eval attempt)",
@@ -297,6 +297,22 @@
           "x": -83.04516188243576,
           "y": -208.6245060629979,
           "title": "Numbers",
+          "body": "",
+          "color": "purple"
+        },
+        {
+          "id": "cle9rd1",
+          "x": 371.6631873099367,
+          "y": 207.60793539903017,
+          "title": "",
+          "body": "",
+          "color": "purple"
+        },
+        {
+          "id": "mbqjcg8",
+          "x": 487,
+          "y": 76.25,
+          "title": "",
           "body": "",
           "color": "purple"
         }
@@ -411,5 +427,7 @@
       "edges": []
     }
   ],
-  "activeBoard": "8flavqs"
+  "activeBoard": "8flavqs",
+  "workLog": [],
+  "activeWork": null
 }

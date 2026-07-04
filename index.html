@@ -69,9 +69,36 @@
   #canvas { flex: 1; position: relative; overflow: hidden; cursor: grab;
     background-image: radial-gradient(circle, #222a38 1.2px, transparent 1.2px); background-size: 26px 26px; }
   #canvas.panning { cursor: grabbing; }
+  #canvas.selecting { cursor: crosshair; }
   #world { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
   #edgeSvg { position: absolute; top: -5000px; left: -5000px; overflow: visible; pointer-events: none; }
   #edgeSvg path.hit { pointer-events: stroke; cursor: pointer; }
+  #mapPalette {
+    position: absolute; left: 12px; top: 72px; bottom: 76px; z-index: 19;
+    width: 78px; padding: 10px 8px; border-radius: 14px;
+    background: rgba(22,27,36,.92); border: 1px solid var(--line);
+    box-shadow: 0 14px 38px rgba(0,0,0,.42); overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .toolBtn {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    min-height: 62px; padding: 8px 5px; border-radius: 10px; color: var(--dim);
+    font-size: 11px; font-weight: 700; line-height: 1.1;
+  }
+  .toolBtn:hover, .toolBtn.on { background: var(--panel2); color: var(--text); }
+  .toolBtn:active { cursor: grabbing; }
+  .toolIcon {
+    width: 36px; height: 32px; border-radius: 8px; background: #f6f7fb; color: #333b49;
+    display: grid; place-items: center; font-size: 20px; box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  }
+  .toolBtn.board .toolIcon { background: var(--accent); color: #fff; }
+  .toolSep { height: 1px; margin: 6px 7px; background: var(--line); flex-shrink: 0; }
+  .toolGhost {
+    position: fixed; z-index: 500; pointer-events: none; transform: translate(-50%, -50%);
+    min-width: 88px; padding: 8px 10px; border-radius: 10px; background: var(--panel2);
+    border: 1px solid var(--accent); color: var(--text); font-weight: 800;
+    box-shadow: 0 12px 34px rgba(0,0,0,.5); opacity: .92;
+  }
 
   .card {
     position: absolute; width: 230px; min-height: 60px; background: var(--panel);
@@ -82,6 +109,48 @@
   .card.sel { border-color: var(--card-c, var(--accent)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-c, var(--accent)) 35%, transparent), 0 6px 18px rgba(0,0,0,.5); }
   .card.dim { opacity: .18; }
   .card.portal { border-style: dashed; cursor: pointer; }
+  .card.todo { border-top-color: var(--c-yellow); }
+  .card.link { border-top-color: var(--c-blue); }
+  .card.column { width: 270px; min-height: 210px; background: #131821; }
+  .card.file { border-top-color: var(--c-gray); }
+  .card.draw { border-top-color: var(--c-pink); }
+  .card.linePick { box-shadow: 0 0 0 4px rgba(0,212,166,.35), 0 6px 18px rgba(0,0,0,.5); }
+  .card.boardTile {
+    width: 180px; min-height: 190px; padding: 0; background: transparent;
+    border: 0; border-radius: 0; box-shadow: none; border-top: 0;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .card.boardTile.sel { border-color: transparent; box-shadow: none; }
+  .card.boardTile.dropHot .boardThumb {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 5px rgba(0,212,166,.22), 0 12px 28px rgba(0,0,0,.5);
+  }
+  .boardThumb {
+    width: 126px; height: 126px; border-radius: 28px; background: var(--panel2);
+    border: 3px solid var(--card-c, var(--accent)); box-shadow: 0 8px 24px rgba(0,0,0,.42);
+    position: relative; margin: 0 auto 10px; cursor: grab;
+  }
+  .boardThumb::before {
+    content: ""; position: absolute; inset: 18px; border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.02));
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  .boardThumb::after {
+    content: ""; position: absolute; right: 11px; top: 11px; width: 13px; height: 13px;
+    border-radius: 50%; background: var(--accent2); box-shadow: 0 0 12px var(--accent2);
+  }
+  .card.boardTile.sel .boardThumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--card-c, var(--accent)) 35%, transparent), 0 8px 24px rgba(0,0,0,.5);
+  }
+  .boardTitle {
+    width: 180px; text-align: center; font-size: 17px; font-weight: 800; line-height: 1.15;
+    color: var(--text); outline: none; word-wrap: break-word; padding: 2px 4px;
+  }
+  .boardCount { margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--dim); }
+  .boardTitle:empty::before { content: "New Board"; color: #4a5568; }
+  .card.boardTile .cardTools { left: 50%; transform: translateX(-50%); top: -42px; }
+  .card.boardTile .dot { right: 14px; top: 63px; opacity: 0; }
+  .card.boardTile:hover .dot, .card.boardTile.sel .dot { opacity: 1; }
   .card .t { font-weight: 700; font-size: 15px; outline: none; word-wrap: break-word; }
   .card .b { font-size: 13px; color: var(--dim); margin-top: 5px; outline: none; word-wrap: break-word; white-space: pre-wrap; min-height: 4px; }
   .card .t:empty::before { content: "Title…"; color: #4a5568; }
@@ -126,6 +195,7 @@
     font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; cursor: pointer; z-index: 3;
     background: var(--blk-c, var(--c-purple)); box-shadow: 0 3px 8px rgba(0,0,0,.35);
   }
+  .blk.work { left: 5px; right: 5px; border: 1px solid rgba(255,255,255,.16); background: #243246; }
   .blk small { display: block; font-weight: 500; opacity: .85; }
 
   .month { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
@@ -137,6 +207,41 @@
   .mday .n { font-size: 13px; font-weight: 700; color: var(--dim); margin-bottom: 4px; }
   .mday.today .n { color: var(--accent2); }
   .chip { font-size: 11px; font-weight: 600; color: #fff; background: var(--blk-c, var(--c-purple)); border-radius: 5px; padding: 2px 6px; margin-bottom: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .chip.work { background: #243246; color: #c9d6e8; border: 1px solid #334156; }
+
+  /* ─── Work Log ─── */
+  #logView { overflow: auto; }
+  .logShell { max-width: 1120px; margin: 0 auto; padding: 20px 18px 64px; width: 100%; }
+  .logTop { display: grid; grid-template-columns: minmax(280px, 1fr) 260px; gap: 14px; align-items: stretch; }
+  .logPanel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .logPanel h2 { font-size: 20px; margin-bottom: 4px; }
+  .logPanel h3 { font-size: 14px; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+  .logSub { color: var(--dim); font-size: 13px; margin-bottom: 14px; }
+  .logForm { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+  .logForm label, .manualGrid label { display: block; font-size: 11px; color: var(--dim); font-weight: 800; text-transform: uppercase; letter-spacing: .45px; margin-bottom: 4px; }
+  .logForm button, .logActions button { background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; font-weight: 800; }
+  .logForm .start { background: var(--accent2); color: #06110e; border-color: transparent; min-width: 106px; }
+  .logForm .stop { background: var(--danger); color: #fff; border-color: transparent; }
+  .timerRead { font-size: 38px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; margin-bottom: 8px; }
+  .timerMeta { color: var(--dim); font-size: 13px; min-height: 38px; }
+  .logActions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .logStats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .stat b { display: block; font-size: 22px; }
+  .stat span { color: var(--dim); font-size: 12px; font-weight: 700; }
+  .logTable { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .logTable th, .logTable td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; }
+  .logTable th { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .45px; background: #111722; }
+  .logTable tr:last-child td { border-bottom: 0; }
+  .logTable .dur { font-variant-numeric: tabular-nums; font-weight: 800; }
+  .logTable button { color: var(--danger); font-weight: 900; padding: 3px 6px; }
+  .emptyLog { color: var(--dim); text-align: center; padding: 26px; background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; }
+  @media (max-width: 800px) {
+    #mapPalette { width: 62px; left: 8px; top: 70px; }
+    .toolBtn { min-height: 54px; font-size: 10px; }
+    .toolIcon { width: 31px; height: 29px; font-size: 17px; }
+    .logTop, .logForm { grid-template-columns: 1fr; }
+  }
 
   /* ─── Content ─── */
   #contentView { overflow: auto; }
@@ -259,6 +364,7 @@
   <nav>
     <button data-v="map" class="on"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 4 15 6 21 4 21 18 15 20 9 18 3 20"/><line x1="9" y1="4" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="20"/></svg> Brain Map</button>
     <button data-v="time"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg> Time Blocks</button>
+    <button data-v="log"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Clock</button>
     <button data-v="content"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><polygon points="10 8.5 16 12 10 15.5" fill="currentColor" stroke="none"/></svg> Content</button>
     <button data-v="team"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6"/><circle cx="17.5" cy="9" r="2.4"/><path d="M15.8 14.2c2.6.3 4.7 2.5 4.7 5.8"/></svg> Team</button>
   </nav>
@@ -279,7 +385,7 @@
     <div id="crumbs"></div>
     <select id="boardSel" title="jump to any board"></select>
     <button id="boardEditBtn" title="rename / delete this board">✎</button>
-    <button id="newBoardBtn" title="create a new top-level board">＋ Board</button>
+    <button id="newBoardBtn" title="create a draggable board tile on this canvas">＋ Board</button>
     <button id="subBoardBtn" title="group selected cards into a nested sub-board (or make an empty one)">📦 Sub-board</button>
     <button id="newCardBtn">＋ New card</button>
     <button id="fitBtn">⛶ Fit</button>
@@ -292,10 +398,26 @@
       <div id="cards"></div>
     </div>
   </div>
+  <div id="mapPalette" aria-label="board tools">
+    <button class="toolBtn" data-tool="cursor"><span class="toolIcon">↖</span><span>Cursor</span></button>
+    <button class="toolBtn" data-tool="note"><span class="toolIcon">☰</span><span>Note</span></button>
+    <button class="toolBtn" data-tool="link"><span class="toolIcon">🔗</span><span>Link</span></button>
+    <button class="toolBtn" data-tool="todo"><span class="toolIcon">☑</span><span>To-do</span></button>
+    <button class="toolBtn" data-tool="line"><span class="toolIcon">↗</span><span>Line</span></button>
+    <button class="toolBtn board" data-tool="board"><span class="toolIcon">▦</span><span>Board</span></button>
+    <button class="toolBtn board" data-tool="subboard"><span class="toolIcon">□</span><span>Sub-board</span></button>
+    <button class="toolBtn" data-tool="column"><span class="toolIcon">▤</span><span>Column</span></button>
+    <div class="toolSep"></div>
+    <button class="toolBtn" data-tool="image"><span class="toolIcon">▧</span><span>Add image</span></button>
+    <button class="toolBtn" data-tool="upload"><span class="toolIcon">▯</span><span>Upload</span></button>
+    <button class="toolBtn" data-tool="draw"><span class="toolIcon">✎</span><span>Draw</span></button>
+  </div>
+  <input id="imagePick" type="file" accept="image/*" hidden>
+  <input id="filePick" type="file" hidden>
   <div id="zoomCtl">
     <button id="zin">＋</button><button id="zout">－</button>
   </div>
-  <div id="hint">double-click = new card · drag the ● dot to connect · Delete key removes selection</div>
+  <div id="hint">double-click = new card · drag cards onto a board tile to move them inside · Delete key removes selection</div>
 </div>
 
 <!-- ═══ TIME BLOCKS ═══ -->
@@ -308,8 +430,39 @@
     <button class="nav" id="tToday">Today</button>
     <button class="nav" id="tNext">›</button>
     <span id="timeLabel"></span>
+    <button class="nav" id="timeLogBtn">＋ Log work</button>
   </div>
   <div id="timeGrid"></div>
+</div>
+
+<!-- ═══ WORK LOG ═══ -->
+<div class="view" id="logView">
+  <div class="logShell">
+    <div class="logTop">
+      <div class="logPanel">
+        <h2>Clock</h2>
+        <div class="logSub">Track actual work so you can see hours, spot over-fixation, and export the log.</div>
+        <div class="logForm">
+          <div><label>Project</label><input id="logProject" list="projectList" placeholder="Trading Plan, Content, Client work"></div>
+          <div><label>Task</label><input id="logTask" list="taskList" placeholder="Backtest, edit video, outreach"></div>
+          <button class="start" id="logToggle">Start</button>
+        </div>
+        <datalist id="projectList"></datalist>
+        <datalist id="taskList"></datalist>
+        <div class="logActions">
+          <button id="manualLogBtn">＋ Manual entry</button>
+          <button id="exportLogBtn">⬇ Export CSV</button>
+        </div>
+      </div>
+      <div class="logPanel">
+        <h3>Now</h3>
+        <div class="timerRead" id="timerRead">00:00:00</div>
+        <div class="timerMeta" id="timerMeta">No timer running.</div>
+      </div>
+    </div>
+    <div class="logStats" id="logStats"></div>
+    <div id="logList"></div>
+  </div>
 </div>
 
 <!-- ═══ CONTENT ═══ -->
@@ -367,7 +520,7 @@ let dirty = false;
 const DEFAULT = () => ({
   savedAt: Date.now(),
   boards: [{ id: 'main', name: '🧠 Main', nodes: [{ id: uid(), x: 60, y: 60, title: "Welcome to your brain 🧠", body: "Double-click anywhere to dump a thought.\nDrag my ● dot to another card to connect ideas.", color: 'purple' }], edges: [] }],
-  activeBoard: 'main', blocks: [], content: []
+  activeBoard: 'main', blocks: [], workLog: [], activeWork: null, content: []
 });
 
 /* the board currently on screen — all map ops go through this */
@@ -385,7 +538,7 @@ async function loadState() {
   else state = local || remote || DEFAULT();
   normalize();
   setStatus('loaded ✓');
-  renderBoards(); renderMap(); renderTime(); renderContent(); renderTeam();
+  renderBoards(); renderMap(); renderTime(); renderWorkLog(); renderContent(); renderTeam();
 }
 function normalize() {
   // migrate old flat nodes/edges → multi-board format
@@ -397,6 +550,7 @@ function normalize() {
   for (const b of state.boards) { b.nodes ||= []; b.edges ||= []; }
   state.activeBoard ||= state.boards[0].id;
   state.blocks ||= []; state.content ||= [];
+  state.workLog ||= []; state.activeWork ||= null;
   if (!state.team) state.team = DEFAULT_TEAM();
   state.groups ||= {};
 }
@@ -461,6 +615,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
   document.getElementById(b.dataset.v + 'View').classList.add('on');
   if (b.dataset.v === 'time') renderTime();
+  if (b.dataset.v === 'log') renderWorkLog();
   if (b.dataset.v === 'team') renderTeam();
 });
 
@@ -471,6 +626,9 @@ let cam = { x: 40, y: 40, z: 1 };
 let selectedNodes = new Set();   // multi-select of card ids
 let selectedEdge = null;
 let cardClipboard = null;
+let lineModeFrom = null;
+let mapTool = null;
+let suppressPaletteClick = false;
 
 function applyCam() { world.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`; }
 applyCam();
@@ -484,8 +642,9 @@ function renderMap() {
 
 const seenNodes = new Set();
 function makeCard(n) {
+  if (n.boardRef) return makeBoardTile(n);
   const el = document.createElement('div');
-  el.className = 'card' + (n.boardRef ? ' portal' : '');
+  el.className = 'card' + (n.type ? ' ' + n.type : '');
   if (!seenNodes.has(n.id)) { el.classList.add('pop'); seenNodes.add(n.id); }
   el.dataset.id = n.id;
   el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
@@ -497,11 +656,6 @@ function makeCard(n) {
     s.onclick = e => { e.stopPropagation(); n.color = name; touch(); renderMap(); };
     tools.appendChild(s);
   }
-  if (n.boardRef) {
-    const open = document.createElement('button'); open.className = 'open'; open.textContent = '⤢'; open.title = 'open sub-board';
-    open.onclick = e => { e.stopPropagation(); openBoard(n.boardRef); };
-    tools.appendChild(open);
-  }
   const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕'; del.title = 'delete card';
   del.onclick = e => { e.stopPropagation(); deleteNodes([n.id]); };
   tools.appendChild(del);
@@ -510,27 +664,16 @@ function makeCard(n) {
   if (n.img) { const img = document.createElement('img'); img.src = n.img; img.draggable = false; el.appendChild(img); }
 
   const t = document.createElement('div'); t.className = 't'; t.contentEditable = true; t.textContent = n.title || '';
-  t.oninput = () => {
-    n.title = t.textContent; touch();
-    if (n.boardRef) { const cb = state.boards.find(x => x.id === n.boardRef); if (cb) { cb.name = n.title; renderBoards(); } }
-  };
+  t.oninput = () => { n.title = t.textContent; touch(); };
   t.onmousedown = e => e.stopPropagation();
   t.onfocus = () => selectNode(n.id);
   el.appendChild(t);
 
-  if (n.boardRef) {
-    const cb = state.boards.find(x => x.id === n.boardRef);
-    const sub = document.createElement('div'); sub.className = 'b portalSub';
-    sub.textContent = cb ? `📦 ${cb.nodes.length} card${cb.nodes.length === 1 ? '' : 's'} inside — double-click to open` : '⚠️ sub-board missing';
-    el.appendChild(sub);
-    el.ondblclick = e => { if (e.target === t) return; openBoard(n.boardRef); };
-  } else {
-    const b = document.createElement('div'); b.className = 'b'; b.contentEditable = true; b.textContent = n.body || '';
-    b.oninput = () => { n.body = b.textContent; touch(); };
-    b.onmousedown = e => e.stopPropagation();
-    b.onfocus = () => selectNode(n.id);
-    el.appendChild(b);
-  }
+  const b = document.createElement('div'); b.className = 'b'; b.contentEditable = true; b.textContent = n.body || '';
+  b.oninput = () => { n.body = b.textContent; touch(); };
+  b.onmousedown = e => e.stopPropagation();
+  b.onfocus = () => selectNode(n.id);
+  el.appendChild(b);
 
   const dot = document.createElement('div'); dot.className = 'dot'; dot.title = 'drag to connect — drop on empty space to spin off a new linked card';
   dot.onmousedown = e => { e.stopPropagation(); e.preventDefault(); startConnect(n, e); };
@@ -538,6 +681,64 @@ function makeCard(n) {
 
   el.onmousedown = e => {
     e.stopPropagation();
+    if (lineModeFrom) { handleLinePick(n.id); return; }
+    const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+    if (additive) { selectNode(n.id, true); return; }
+    if (!(selectedNodes.size > 1 && selectedNodes.has(n.id))) selectNode(n.id, false);
+    startDragCard(n, el, e);
+  };
+  return el;
+}
+
+function makeBoardTile(n) {
+  const child = state.boards.find(x => x.id === n.boardRef);
+  const el = document.createElement('div');
+  el.className = 'card boardTile';
+  if (!seenNodes.has(n.id)) { el.classList.add('pop'); seenNodes.add(n.id); }
+  el.dataset.id = n.id;
+  el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+  el.style.setProperty('--card-c', COLORS[n.color] || COLORS.blue);
+  el.title = child ? 'Double-click to open. Drop cards here to move them inside.' : 'This board is missing.';
+
+  const tools = document.createElement('div'); tools.className = 'cardTools';
+  for (const [name, hex] of Object.entries(COLORS)) {
+    const s = document.createElement('button'); s.className = 'sw'; s.style.background = hex; s.title = name;
+    s.onclick = e => { e.stopPropagation(); n.color = name; touch(); renderMap(); };
+    tools.appendChild(s);
+  }
+  const open = document.createElement('button'); open.className = 'open'; open.textContent = '⤢'; open.title = 'open board';
+  open.onclick = e => { e.stopPropagation(); openBoard(n.boardRef); };
+  tools.appendChild(open);
+  const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕'; del.title = 'delete board tile';
+  del.onclick = e => { e.stopPropagation(); deleteNodes([n.id]); };
+  tools.appendChild(del);
+  el.appendChild(tools);
+
+  const thumb = document.createElement('div'); thumb.className = 'boardThumb';
+  el.appendChild(thumb);
+
+  const title = document.createElement('div'); title.className = 'boardTitle'; title.contentEditable = true; title.textContent = n.title || child?.name || 'New Board';
+  title.oninput = () => {
+    n.title = title.textContent.trim() || 'New Board';
+    if (child) { child.name = n.title; renderBoards(); }
+    touch();
+  };
+  title.onmousedown = e => e.stopPropagation();
+  title.onfocus = () => selectNode(n.id);
+  el.appendChild(title);
+
+  const count = document.createElement('div'); count.className = 'boardCount';
+  count.textContent = child ? `${child.nodes.length} card${child.nodes.length === 1 ? '' : 's'}` : 'missing board';
+  el.appendChild(count);
+
+  const dot = document.createElement('div'); dot.className = 'dot'; dot.title = 'drag to connect';
+  dot.onmousedown = e => { e.stopPropagation(); e.preventDefault(); startConnect(n, e); };
+  el.appendChild(dot);
+
+  el.ondblclick = e => { if (e.target === title) return; openBoard(n.boardRef); };
+  el.onmousedown = e => {
+    e.stopPropagation();
+    if (lineModeFrom) { handleLinePick(n.id); return; }
     const additive = e.shiftKey || e.metaKey || e.ctrlKey;
     if (additive) { selectNode(n.id, true); return; }
     if (!(selectedNodes.size > 1 && selectedNodes.has(n.id))) selectNode(n.id, false);
@@ -567,7 +768,7 @@ function refreshSelectionUI() {
     : DEFAULT_HINT;
   drawEdges();
 }
-const DEFAULT_HINT = "double-click = new card · drag ● dot (drop on empty space = new linked card) · shift-click/shift-drag = multi-select · ⌘C/⌘V copy-paste · Delete removes selection";
+const DEFAULT_HINT = "double-click = new card · drag cards onto a board tile to move them inside · drag ● dot to connect · shift-click/shift-drag = multi-select · ⌘C/⌘V copy-paste";
 
 function deleteNodes(ids) {
   const b = board(); const idSet = new Set(ids);
@@ -576,12 +777,17 @@ function deleteNodes(ids) {
   clearSelection(); touch(); renderMap();
 }
 
-function addNode(wx, wy, title = '', body = '', color = 'purple') {
-  const n = { id: uid(), x: wx, y: wy, title, body, color };
+function addNode(wx, wy, title = '', body = '', color = 'purple', extra = {}) {
+  const n = { id: uid(), x: wx, y: wy, title, body, color, ...extra };
   board().nodes.push(n); touch(); renderMap();
   const el = cardsEl.querySelector(`[data-id="${n.id}"]`);
   if (el) { selectNode(n.id); el.querySelector('.t').focus(); }
   return n;
+}
+
+function centerWorld() {
+  const r = canvas.getBoundingClientRect();
+  return { x: (r.width / 2 - cam.x) / cam.z, y: (r.height / 2 - cam.y) / cam.z };
 }
 
 canvas.addEventListener('dblclick', e => {
@@ -594,12 +800,159 @@ document.getElementById('newCardBtn').onclick = () => {
   addNode((r.width / 2 - cam.x) / cam.z - 115 + Math.random() * 40, (r.height / 2 - cam.y) / cam.z - 30 + Math.random() * 40);
 };
 
+document.querySelectorAll('#mapPalette .toolBtn').forEach(btn => {
+  btn.onmousedown = e => startPaletteDrag(btn, e);
+  btn.onclick = () => {
+    if (suppressPaletteClick) return;
+    usePaletteTool(btn.dataset.tool);
+  };
+});
+document.getElementById('imagePick').onchange = e => {
+  const file = e.target.files && e.target.files[0];
+  if (file) pasteImageCard(file);
+  e.target.value = '';
+};
+document.getElementById('filePick').onchange = e => {
+  const file = e.target.files && e.target.files[0];
+  if (file) addFileCard(file);
+  e.target.value = '';
+};
+
+function usePaletteTool(tool) {
+  const c = centerWorld();
+  if (tool === 'cursor') { setMapTool(mapTool === 'cursor' ? null : 'cursor'); return; }
+  if (tool !== 'line') setMapTool(null);
+  if (tool === 'note') createPaletteItemAt(tool, c.x, c.y);
+  else if (tool === 'todo') createPaletteItemAt(tool, c.x, c.y);
+  else if (tool === 'column') createPaletteItemAt(tool, c.x, c.y);
+  else if (tool === 'draw') createPaletteItemAt(tool, c.x, c.y);
+  else if (tool === 'image') document.getElementById('imagePick').click();
+  else if (tool === 'upload') document.getElementById('filePick').click();
+  else if (tool === 'board' || tool === 'subboard') createPaletteItemAt(tool, c.x, c.y);
+  else if (tool === 'link') newLinkCard();
+  else if (tool === 'line') startLineMode();
+}
+
+function startPaletteDrag(btn, e) {
+  if (e.button !== 0 || ['cursor', 'line', 'image', 'upload', 'link'].includes(btn.dataset.tool)) return;
+  const sx = e.clientX, sy = e.clientY;
+  let ghost = null, dragging = false;
+  const mv = ev => {
+    const dist = Math.hypot(ev.clientX - sx, ev.clientY - sy);
+    if (!dragging && dist > 6) {
+      dragging = true;
+      suppressPaletteClick = true;
+      ghost = document.createElement('div');
+      ghost.className = 'toolGhost';
+      ghost.textContent = btn.textContent.trim();
+      document.body.appendChild(ghost);
+      document.body.style.userSelect = 'none';
+    }
+    if (ghost) { ghost.style.left = ev.clientX + 'px'; ghost.style.top = ev.clientY + 'px'; }
+  };
+  const up = ev => {
+    document.removeEventListener('mousemove', mv);
+    document.removeEventListener('mouseup', up);
+    document.body.style.userSelect = '';
+    if (ghost) ghost.remove();
+    if (dragging) {
+      const r = canvas.getBoundingClientRect();
+      if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) {
+        const wx = (ev.clientX - r.left - cam.x) / cam.z;
+        const wy = (ev.clientY - r.top - cam.y) / cam.z;
+        createPaletteItemAt(btn.dataset.tool, wx, wy);
+      }
+      setTimeout(() => { suppressPaletteClick = false; }, 0);
+    }
+  };
+  document.addEventListener('mousemove', mv);
+  document.addEventListener('mouseup', up);
+}
+
+function createPaletteItemAt(tool, wx, wy) {
+  if (tool === 'note') return addNode(wx - 115, wy - 35, 'New note', '', 'purple');
+  if (tool === 'todo') return addNode(wx - 115, wy - 35, 'To-do', '☐ First task\n☐ Next task', 'yellow', { type: 'todo' });
+  if (tool === 'column') return addNode(wx - 135, wy - 80, 'Column', 'Drop related notes around this area.', 'gray', { type: 'column' });
+  if (tool === 'draw') return addNode(wx - 115, wy - 55, 'Sketch', 'Use this as a drawing placeholder or paste an image sketch here.', 'pink', { type: 'draw' });
+  if (tool === 'board' || tool === 'subboard') return createBoardTile(tool === 'subboard' ? 'Sub-board' : 'New Board', [], [], wx - 90, wy - 80, true);
+}
+
+function setMapTool(tool) {
+  mapTool = tool;
+  if (tool !== 'line') lineModeFrom = null;
+  canvas.classList.toggle('selecting', tool === 'cursor');
+  document.querySelectorAll('#mapPalette .toolBtn').forEach(b => b.classList.toggle('on', b.dataset.tool === tool));
+  document.querySelectorAll('.card.linePick').forEach(el => el.classList.remove('linePick'));
+  const hint = document.getElementById('hint');
+  if (hint && tool === 'cursor') hint.textContent = 'Cursor mode: drag empty space to select multiple · drag selected cards to move together · Esc exits';
+  else if (hint && selectedNodes.size <= 1) hint.textContent = DEFAULT_HINT;
+}
+
+function newLinkCard() {
+  openModal(`<h3>🔗 Add link</h3>
+    <div class="row"><div><label>Title</label><input id="linkTitle" placeholder="Resource, reference, doc…"></div></div>
+    <div class="row"><div><label>URL</label><input id="linkUrl" placeholder="https://"></div></div>
+    <div class="btns"><button class="pri" id="linkSave">Add link</button><button class="sec" id="linkCancel">Cancel</button></div>`);
+  document.getElementById('linkCancel').onclick = closeModal;
+  document.getElementById('linkSave').onclick = () => {
+    const c = centerWorld();
+    const url = document.getElementById('linkUrl').value.trim();
+    const title = document.getElementById('linkTitle').value.trim() || url || 'Link';
+    addNode(c.x - 115, c.y - 35, title, url, 'blue', { type: 'link', url });
+    closeModal();
+  };
+  document.getElementById('linkUrl').focus();
+}
+
+function addFileCard(file) {
+  const c = centerWorld();
+  const size = file.size >= 1048576 ? (file.size / 1048576).toFixed(1) + ' MB' : Math.ceil(file.size / 1024) + ' KB';
+  addNode(c.x - 115, c.y - 35, file.name, `${file.type || 'file'} · ${size}`, 'gray', { type: 'file' });
+  toast('▯ file noted on board');
+}
+
+function startLineMode() {
+  setMapTool('line');
+  lineModeFrom = 'pick';
+  toast('↗ click the first card, then the second card');
+}
+
+function handleLinePick(id) {
+  if (lineModeFrom === 'pick') {
+    lineModeFrom = id;
+    selectNode(id);
+    cardsEl.querySelector(`[data-id="${id}"]`)?.classList.add('linePick');
+    toast('↗ now click the card to connect');
+    return;
+  }
+  if (lineModeFrom && lineModeFrom !== id) {
+    const a = lineModeFrom, b = id;
+    if (!board().edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a))) {
+      board().edges.push({ id: uid(), a, b }); touch();
+    }
+  }
+  lineModeFrom = null;
+  setMapTool(null);
+  document.querySelectorAll('.card.linePick').forEach(el => el.classList.remove('linePick'));
+  drawEdges();
+}
+
 /* drag card — moves the whole selection together when the dragged card is part of a multi-select */
 function startDragCard(n, el, e) {
   const ids = selectedNodes.size > 1 && selectedNodes.has(n.id) ? [...selectedNodes] : [n.id];
+  const idSet = new Set(ids);
   const group = ids.map(id => board().nodes.find(x => x.id === id)).filter(Boolean).map(nd => ({ nd, ox: nd.x, oy: nd.y }));
   const sx = e.clientX, sy = e.clientY;
   let moved = false;
+  let hotDrop = null;
+  const els = group.map(g => cardsEl.querySelector(`[data-id="${g.nd.id}"]`)).filter(Boolean);
+  els.forEach(nodeEl => { nodeEl.style.pointerEvents = 'none'; });
+  const setHotDrop = drop => {
+    if (hotDrop?.el === drop?.el) return;
+    if (hotDrop) hotDrop.el.classList.remove('dropHot');
+    hotDrop = drop;
+    if (hotDrop) hotDrop.el.classList.add('dropHot');
+  };
   const mv = ev => {
     const dx = (ev.clientX - sx) / cam.z, dy = (ev.clientY - sy) / cam.z;
     if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
@@ -608,10 +961,46 @@ function startDragCard(n, el, e) {
       const cel = cardsEl.querySelector(`[data-id="${g.nd.id}"]`);
       if (cel) { cel.style.left = g.nd.x + 'px'; cel.style.top = g.nd.y + 'px'; }
     }
+    setHotDrop(getBoardDropTarget(ev.clientX, ev.clientY, idSet, group));
     drawEdges();
   };
-  const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); if (moved) touch(); };
+  const up = ev => {
+    document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
+    const drop = getBoardDropTarget(ev.clientX, ev.clientY, idSet, group);
+    els.forEach(nodeEl => { nodeEl.style.pointerEvents = ''; });
+    setHotDrop(null);
+    if (moved && drop && moveNodesIntoBoard(ids, drop.child)) return;
+    if (moved) touch();
+  };
   document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+}
+
+function getBoardDropTarget(clientX, clientY, movingIds, group) {
+  if (!group.some(g => !g.nd.boardRef)) return null;
+  const dropEl = document.elementFromPoint(clientX, clientY)?.closest('.boardTile');
+  if (!dropEl || movingIds.has(dropEl.dataset.id)) return null;
+  const portal = board().nodes.find(x => x.id === dropEl.dataset.id && x.boardRef);
+  const child = portal && state.boards.find(b => b.id === portal.boardRef);
+  return child ? { el: dropEl, portal, child } : null;
+}
+
+function moveNodesIntoBoard(ids, targetBoard) {
+  const parent = board();
+  const idSet = new Set(ids);
+  const nodes = parent.nodes.filter(n => idSet.has(n.id) && !n.boardRef).map(n => ({ ...n }));
+  if (!nodes.length) return false;
+  const edges = parent.edges.filter(e => idSet.has(e.a) && idSet.has(e.b)).map(e => ({ ...e }));
+  const minX = Math.min(...nodes.map(n => n.x));
+  const minY = Math.min(...nodes.map(n => n.y));
+  const dx = 80 - minX, dy = 80 - minY;
+  nodes.forEach(n => { n.x += dx; n.y += dy; });
+  parent.nodes = parent.nodes.filter(n => !idSet.has(n.id) || n.boardRef);
+  parent.edges = parent.edges.filter(e => !idSet.has(e.a) && !idSet.has(e.b));
+  targetBoard.nodes.push(...nodes);
+  targetBoard.edges.push(...edges);
+  clearSelection(); touch(); renderBoards(); renderMap();
+  toast(`📦 moved ${nodes.length} card${nodes.length === 1 ? '' : 's'} into "${targetBoard.name}"`);
+  return true;
 }
 
 /* connect — drop on another card to link them; drop on empty space to spin off a new linked card */
@@ -683,7 +1072,8 @@ function drawEdges() {
 /* pan + zoom + marquee (shift-drag = Lucidchart-style rubber-band multi-select) */
 canvas.addEventListener('mousedown', e => {
   if (e.target.closest('.card')) return;
-  if (e.shiftKey || e.metaKey || e.ctrlKey) { startMarquee(e); return; }
+  if (mapTool === 'cursor') { startMarquee(e, e.shiftKey || e.metaKey || e.ctrlKey); return; }
+  if (e.shiftKey || e.metaKey || e.ctrlKey) { startMarquee(e, true); return; }
   clearSelection();
   canvas.classList.add('panning');
   const sx = e.clientX, sy = e.clientY, ox = cam.x, oy = cam.y;
@@ -691,9 +1081,9 @@ canvas.addEventListener('mousedown', e => {
   const up = () => { canvas.classList.remove('panning'); document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
   document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
 });
-function startMarquee(e) {
+function startMarquee(e, additive = false) {
   const startX = e.clientX, startY = e.clientY;
-  const preExisting = new Set(selectedNodes);
+  const preExisting = additive ? new Set(selectedNodes) : new Set();
   const box = document.createElement('div'); box.id = 'marqueeBox';
   document.body.appendChild(box);
   const mv = ev => {
@@ -709,6 +1099,7 @@ function startMarquee(e) {
   };
   const up = () => {
     document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
+    selectedNodes = new Set(preExisting);
     document.querySelectorAll('.card.sel').forEach(el => selectedNodes.add(el.dataset.id));
     box.remove();
     selectedEdge = null;
@@ -747,7 +1138,7 @@ function applySearch() {
   document.querySelectorAll('.card').forEach(el => {
     if (!q) return el.classList.remove('dim');
     const n = board().nodes.find(n => n.id === el.dataset.id);
-    const hit = (n.title + ' ' + n.body).toLowerCase().includes(q);
+    const hit = ((n.title || '') + ' ' + (n.body || '')).toLowerCase().includes(q);
     el.classList.toggle('dim', !hit);
   });
 }
@@ -789,17 +1180,10 @@ document.getElementById('boardSel').onchange = e => {
   clearSelection(); touch(); renderBoards(); renderMap(); fitView();
 };
 document.getElementById('newBoardBtn').onclick = () => {
-  openModal(`<h3>＋ New board</h3>
-    <div class="row"><div><label>Name</label><input id="bName" placeholder="Business ideas, Content plan, Life…"></div></div>
-    <div class="btns"><button class="pri" id="bSave">Create</button><button class="sec" id="bCancel">Cancel</button></div>`);
-  document.getElementById('bSave').onclick = () => {
-    const b = { id: uid(), name: document.getElementById('bName').value.trim() || 'New board', nodes: [], edges: [] };
-    state.boards.push(b); state.activeBoard = b.id;
-    touch(); closeModal(); renderBoards(); renderMap(); fitView();
-    toast('🗂️ board created — double-click to start dumping');
-  };
-  document.getElementById('bCancel').onclick = closeModal;
-  document.getElementById('bName').focus();
+  const r = canvas.getBoundingClientRect();
+  const x = (r.width / 2 - cam.x) / cam.z - 90 + Math.random() * 36;
+  const y = (r.height / 2 - cam.y) / cam.z - 80 + Math.random() * 36;
+  createBoardTile('New Board', [], [], x, y, true);
 };
 document.getElementById('boardEditBtn').onclick = () => {
   const b = board();
@@ -845,14 +1229,34 @@ document.getElementById('subBoardBtn').onclick = () => {
       const r = canvas.getBoundingClientRect();
       cx = (r.width / 2 - cam.x) / cam.z; cy = (r.height / 2 - cam.y) / cam.z;
     }
-    const childBoard = { id: uid(), name, parentBoard: parent.id, nodes: childNodes, edges: childEdges };
-    state.boards.push(childBoard);
-    parent.nodes.push({ id: uid(), x: cx - 115, y: cy - 20, title: name, body: '', color: 'blue', boardRef: childBoard.id });
-    touch(); closeModal(); renderBoards(); renderMap(); fitView();
-    toast(`📦 "${name}" created — double-click the tile to open it`);
+    createBoardTile(name, childNodes, childEdges, cx - 90, cy - 80);
+    closeModal(); fitView();
   };
   document.getElementById('sbName').focus();
 };
+
+function createBoardTile(name, childNodes = [], childEdges = [], x = 60, y = 60, focusTitle = false) {
+  const parent = board();
+  const childBoard = { id: uid(), name, parentBoard: parent.id, nodes: childNodes, edges: childEdges };
+  state.boards.push(childBoard);
+  const tile = { id: uid(), x, y, title: name, body: '', color: 'blue', boardRef: childBoard.id };
+  parent.nodes.push(tile);
+  selectedNodes = new Set([tile.id]); selectedEdge = null;
+  touch(); renderBoards(); renderMap();
+  if (focusTitle) {
+    requestAnimationFrame(() => {
+      const title = cardsEl.querySelector(`[data-id="${tile.id}"] .boardTitle`);
+      if (!title) return;
+      title.focus();
+      const range = document.createRange();
+      range.selectNodeContents(title);
+      const sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(range);
+    });
+  }
+  toast(`📦 "${name}" created — drop cards on it or double-click to open`);
+  return tile;
+}
 
 /* export current board */
 document.getElementById('exportBtn').onclick = () => {
@@ -916,6 +1320,12 @@ function exportBoardPNG() {
 
 /* delete key — works on the whole multi-selection */
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && (lineModeFrom || mapTool)) {
+    const wasLine = !!lineModeFrom;
+    setMapTool(null);
+    toast(wasLine ? 'line cancelled' : 'cursor mode off');
+    return;
+  }
   if (e.key !== 'Delete' && e.key !== 'Backspace') return;
   const a = document.activeElement;
   if (a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName))) return;
@@ -994,6 +1404,176 @@ function downscaleImage(file, maxW, quality) {
   });
 }
 
+/* ═══════════════ WORK LOG / CLOCK ═══════════════ */
+let logTicker = null;
+document.getElementById('logToggle').onclick = () => state.activeWork ? stopWorkTimer() : startWorkTimer();
+document.getElementById('manualLogBtn').onclick = () => manualLogModal();
+document.getElementById('exportLogBtn').onclick = exportWorkLogCSV;
+
+function renderWorkLog() {
+  renderLogSuggestions();
+  renderTimer();
+  renderLogStats();
+  renderLogList();
+  clearInterval(logTicker);
+  if (state?.activeWork) logTicker = setInterval(() => { renderTimer(); renderLogStats(); }, 1000);
+}
+
+function renderLogSuggestions() {
+  const projects = new Set(state.boards.map(b => b.name.replace(/^🧠\s*/, '')));
+  const tasks = new Set();
+  for (const b of state.boards) for (const n of b.nodes) if (n.title) tasks.add(n.title);
+  for (const l of state.workLog) { if (l.project) projects.add(l.project); if (l.task) tasks.add(l.task); }
+  if (state.activeWork?.project) projects.add(state.activeWork.project);
+  if (state.activeWork?.task) tasks.add(state.activeWork.task);
+  document.getElementById('projectList').innerHTML = [...projects].filter(Boolean).sort().map(v => `<option value="${esc(v)}"></option>`).join('');
+  document.getElementById('taskList').innerHTML = [...tasks].filter(Boolean).sort().map(v => `<option value="${esc(v)}"></option>`).join('');
+}
+
+function startWorkTimer() {
+  const project = document.getElementById('logProject').value.trim() || board().name.replace(/^🧠\s*/, '') || 'Work';
+  const task = document.getElementById('logTask').value.trim() || selectedTaskName() || 'Focus block';
+  const prior = findMatchingLog(project, task);
+  state.activeWork = { id: uid(), project, task, start: new Date().toISOString(), notes: '', matchedLogId: prior?.id || null };
+  touch(); renderWorkLog(); renderTime();
+  toast(prior ? `⏱️ matched existing task: ${task}` : `⏱️ started: ${task}`);
+}
+
+function stopWorkTimer() {
+  const a = state.activeWork;
+  if (!a) return;
+  const end = new Date().toISOString();
+  if ((new Date(end) - new Date(a.start)) < 5000 && !confirm('Timer is under 5 seconds. Save it anyway?')) return;
+  state.workLog.unshift({ id: a.id, project: a.project, task: a.task, start: a.start, end, notes: a.notes || '' });
+  state.activeWork = null;
+  touch(); renderWorkLog(); renderTime();
+  toast('✅ work logged');
+}
+
+function selectedTaskName() {
+  const id = [...selectedNodes][0];
+  const n = id && board().nodes.find(x => x.id === id);
+  return n?.title || '';
+}
+
+function findMatchingLog(project, task) {
+  const key = s => String(s || '').trim().toLowerCase();
+  return state.workLog.find(l => key(l.project) === key(project) && key(l.task) === key(task));
+}
+
+function renderTimer() {
+  const btn = document.getElementById('logToggle');
+  const read = document.getElementById('timerRead');
+  const meta = document.getElementById('timerMeta');
+  if (!state.activeWork) {
+    btn.textContent = 'Start'; btn.className = 'start';
+    read.textContent = '00:00:00';
+    meta.textContent = 'No timer running.';
+    return;
+  }
+  btn.textContent = 'Stop'; btn.className = 'stop';
+  read.textContent = fmtTimer((Date.now() - new Date(state.activeWork.start).getTime()) / 1000);
+  meta.innerHTML = `<b>${esc(state.activeWork.task)}</b><br>${esc(state.activeWork.project)} · started ${new Date(state.activeWork.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+function renderLogStats() {
+  const today = iso(new Date());
+  const weekStart = new Date(); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const todayH = state.workLog.filter(l => logDate(l) === today).reduce((s, l) => s + logHours(l), 0);
+  const weekH = state.workLog.filter(l => new Date(l.start) >= weekStart).reduce((s, l) => s + logHours(l), 0);
+  const active = state.activeWork ? (Date.now() - new Date(state.activeWork.start).getTime()) / 3600000 : 0;
+  document.getElementById('logStats').innerHTML = `
+    <div class="stat"><b>${(todayH + active).toFixed(1)}h</b><span>today</span></div>
+    <div class="stat"><b>${(weekH + active).toFixed(1)}h</b><span>this week</span></div>
+    <div class="stat"><b>${topProjectToday() || '—'}</b><span>top project today</span></div>`;
+}
+
+function renderLogList() {
+  const el = document.getElementById('logList');
+  if (!state.workLog.length) {
+    el.innerHTML = '<div class="emptyLog">No work logged yet. Start the clock or add a manual entry.</div>';
+    return;
+  }
+  el.innerHTML = `<table class="logTable"><thead><tr><th>Date</th><th>Project</th><th>Task</th><th>Time</th><th>Hours</th><th></th></tr></thead><tbody>
+    ${state.workLog.slice(0, 80).map(l => `<tr>
+      <td>${esc(logDate(l))}</td><td>${esc(l.project)}</td><td>${esc(l.task)}</td>
+      <td>${esc(timeRange(l))}</td><td class="dur">${logHours(l).toFixed(2)}</td>
+      <td><button data-del-log="${l.id}" title="delete entry">×</button></td>
+    </tr>`).join('')}</tbody></table>`;
+  el.querySelectorAll('[data-del-log]').forEach(b => b.onclick = () => {
+    state.workLog = state.workLog.filter(l => l.id !== b.dataset.delLog);
+    touch(); renderWorkLog(); renderTime();
+  });
+}
+
+function manualLogModal() {
+  const now = new Date();
+  const end = localDateTimeValue(now);
+  const startDate = new Date(now.getTime() - 60 * 60 * 1000);
+  openModal(`<h3>＋ Manual work entry</h3>
+    <div class="row">
+      <div><label>Project</label><input id="mlProject" value="${esc(document.getElementById('logProject').value || board().name.replace(/^🧠\s*/, ''))}"></div>
+      <div><label>Task</label><input id="mlTask" value="${esc(document.getElementById('logTask').value || selectedTaskName())}" placeholder="what did you do?"></div>
+    </div>
+    <div class="row">
+      <div><label>Start</label><input id="mlStart" type="datetime-local" value="${localDateTimeValue(startDate)}"></div>
+      <div><label>End</label><input id="mlEnd" type="datetime-local" value="${end}"></div>
+    </div>
+    <div class="row"><div><label>Notes</label><textarea id="mlNotes" rows="3" placeholder="optional"></textarea></div></div>
+    <div class="btns"><button class="pri" id="mlSave">Add entry</button><button class="sec" id="mlCancel">Cancel</button></div>`);
+  document.getElementById('mlCancel').onclick = closeModal;
+  document.getElementById('mlSave').onclick = () => {
+    const start = new Date(document.getElementById('mlStart').value);
+    const endDt = new Date(document.getElementById('mlEnd').value);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(endDt.getTime()) || endDt <= start) return toast('end time has to be after start');
+    state.workLog.unshift({
+      id: uid(),
+      project: document.getElementById('mlProject').value.trim() || 'Work',
+      task: document.getElementById('mlTask').value.trim() || 'Manual entry',
+      start: start.toISOString(),
+      end: endDt.toISOString(),
+      notes: document.getElementById('mlNotes').value.trim()
+    });
+    touch(); closeModal(); renderWorkLog(); renderTime();
+  };
+  document.getElementById('mlTask').focus();
+}
+
+function exportWorkLogCSV() {
+  const rows = [['date','project','task','start','end','hours','notes'], ...state.workLog.map(l => [
+    logDate(l), l.project, l.task, new Date(l.start).toISOString(), new Date(l.end).toISOString(), logHours(l).toFixed(2), l.notes || ''
+  ])];
+  const csv = rows.map(r => r.map(csvCell).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `work-log-${iso(new Date())}.csv`;
+  a.click();
+  toast('⬇ work log exported');
+}
+
+function workLogsForDate(date) { return state.workLog.filter(l => logDate(l) === date); }
+function logDate(l) { return iso(new Date(l.start)); }
+function logHours(l) { return Math.max(0, (new Date(l.end) - new Date(l.start)) / 3600000); }
+function timeRange(l) {
+  const f = d => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return `${f(l.start)} - ${f(l.end)}`;
+}
+function fmtTimer(seconds) {
+  const s = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return [h, m, sec].map(v => String(v).padStart(2, '0')).join(':');
+}
+function localDateTimeValue(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function topProjectToday() {
+  const totals = {};
+  for (const l of workLogsForDate(iso(new Date()))) totals[l.project] = (totals[l.project] || 0) + logHours(l);
+  return Object.entries(totals).sort((a,b) => b[1] - a[1])[0]?.[0];
+}
+function csvCell(v) { return `"${String(v ?? '').replace(/"/g, '""')}"`; }
+
 /* ═══════════════ TIME BLOCKS ═══════════════ */
 let tMode = 'week';
 let tAnchor = new Date(); tAnchor.setHours(0, 0, 0, 0);
@@ -1011,6 +1591,7 @@ document.querySelectorAll('#timeBar .seg button').forEach(b => b.onclick = () =>
 document.getElementById('tPrev').onclick = () => { shiftAnchor(-1); };
 document.getElementById('tNext').onclick = () => { shiftAnchor(1); };
 document.getElementById('tToday').onclick = () => { tAnchor = new Date(); tAnchor.setHours(0,0,0,0); renderTime(); };
+document.getElementById('timeLogBtn').onclick = manualLogModal;
 function shiftAnchor(dir) {
   if (tMode === 'day') tAnchor.setDate(tAnchor.getDate() + dir);
   else if (tMode === 'week') tAnchor.setDate(tAnchor.getDate() + 7 * dir);
@@ -1031,8 +1612,11 @@ function renderTime() {
       const key = iso(d);
       const out = d.getMonth() !== tAnchor.getMonth() ? ' out' : '';
       const td = key === today ? ' today' : '';
-      const chips = state.blocks.filter(b => b.date === key).sort((a,b) => a.start - b.start)
+      const planChips = state.blocks.filter(b => b.date === key).sort((a,b) => a.start - b.start)
         .map(b => `<div class="chip" style="--blk-c:${COLORS[b.color]||COLORS.purple}" data-blk="${b.id}">${hrLabel(b.start)} ${esc(b.label)}</div>`).join('');
+      const workH = workLogsForDate(key).reduce((s, l) => s + logHours(l), 0);
+      const workChip = workH ? `<div class="chip work" title="actual work logged">⏱ ${workH.toFixed(1)}h logged</div>` : '';
+      const chips = planChips + workChip;
       html += `<div class="mday${out}${td}" data-date="${key}"><div class="n">${d.getDate()}</div>${chips}</div>`;
     }
     grid.innerHTML = html + '</div>';
@@ -1055,8 +1639,11 @@ function renderTime() {
     html += `<tr><td class="hr">${hrLabel(h)}</td>`;
     for (const d of days) {
       const key = iso(d);
-      const blks = state.blocks.filter(b => b.date === key && Math.floor(b.start) === h)
-        .map(b => `<div class="blk" style="--blk-c:${COLORS[b.color]||COLORS.purple};height:${Math.max(1, b.dur) * 46 - 4}px" data-blk="${b.id}">${esc(b.label)}<small>${hrLabel(b.start)} · ${b.dur}h</small></div>`).join('');
+      const planBlocks = state.blocks.filter(b => b.date === key && Math.floor(b.start) === h)
+        .map(b => `<div class="blk" style="--blk-c:${COLORS[b.color]||COLORS.purple};height:${Math.max(1, b.dur) * 46 - 4}px" data-blk="${b.id}">${esc(b.label)}<small>${hrLabel(b.start)} · ${b.dur}h planned</small></div>`).join('');
+      const workBlocks = workLogsForDate(key).filter(l => new Date(l.start).getHours() === h)
+        .map((l, i) => `<div class="blk work" style="top:${4 + i * 24}px;height:22px" title="${esc(l.project)}">${esc(l.task)}<small>${logHours(l).toFixed(1)}h actual</small></div>`).join('');
+      const blks = planBlocks + workBlocks;
       html += `<td data-date="${key}" data-h="${h}">${blks}</td>`;
     }
     html += '</tr>';
