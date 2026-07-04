@@ -1,5 +1,5 @@
 {
-  "savedAt": 1783191355341,
+  "savedAt": 1783193992947,
   "blocks": [
     {
       "id": "u100fnt",
@@ -110,34 +110,34 @@
       "nodes": [
         {
           "id": "6cjzfhy",
-          "x": 277.6672154724778,
-          "y": 113.6220647205731,
-          "title": "Get Unemployed",
+          "x": 303.90654616064114,
+          "y": -320.6363108964024,
+          "title": "Get Unemployed or Make Time",
           "body": "",
           "color": "purple"
         },
         {
           "id": "2w6usqg",
-          "x": 596.6580563223893,
-          "y": 37.64060442767263,
-          "title": "Get Lucid Accounts",
+          "x": 724.5665708203065,
+          "y": -329.5011735175573,
+          "title": "Get Dad To Invest",
           "body": "3 Accounts = 3-6K Payouts",
           "color": "purple"
         },
         {
           "id": "6rpf3s5",
-          "x": 819.9116559345637,
-          "y": 213.66234153251727,
-          "title": "TopStep & Lucid Combo",
+          "x": 980.5852760564123,
+          "y": -152.06260091200784,
+          "title": "Scaling Small",
           "body": "Scale to 8 Accounts",
           "color": "purple"
         },
         {
           "id": "pa1acct",
-          "x": 780,
-          "y": 420,
+          "x": 774.5872996710632,
+          "y": 498.7915441873064,
           "title": "Per Account Math",
-          "body": "$1,500 withdrawn/mo\n-$100 cost/mo (avg)\n= $1,400 net/mo per account",
+          "body": "$1,500 withdrawn/mo\n-$100 cost/per challebnfe (avg)\n= $1,500 net/mo per account",
           "color": "green"
         },
         {
@@ -158,11 +158,147 @@
         },
         {
           "id": "rampnote",
-          "x": 780,
-          "y": 600,
-          "title": "Ramp-up reality",
-          "body": "Assumes all 8 accounts funded + passing at once.\nRealistically stagger funding — combo scales as each account passes eval.",
+          "x": 967.0142443298029,
+          "y": 997.7763292094221,
+          "title": "Ramp-up reality (old take)",
+          "body": "Superseded by the phased plan →\nNo rinsing to 3.5k right away. Build a buffer on each account first, then scale.",
           "color": "gray"
+        },
+        {
+          "id": "ph1cheap",
+          "x": 1489.0063154404668,
+          "y": -203.69334106965087,
+          "title": "Phase 1: Pick a Cheap Firm",
+          "body": "Lucid or MFFU — get funded on 1 account\nGet first payout\nPatience: build a buffer, don't rinse it down to ~$3.5k right away",
+          "color": "orange"
+        },
+        {
+          "id": "ph2reinv",
+          "x": 1190.7200168499687,
+          "y": 181.30452874524954,
+          "title": "Phase 2: Reinvest & Max Allocate",
+          "body": "Reinvest first payout(s)\nMax allocate on 50Ks across Lucid + MFFU\nGet steady payouts from both before scaling further",
+          "color": "orange"
+        },
+        {
+          "id": "ph3addfirms",
+          "x": 1500,
+          "y": 440,
+          "title": "Phase 3: Add TopStep + Alpha",
+          "body": "Reinvest Lucid/MFFU payouts\nFund 5 Funded Futures + 3 Alpha Futures accounts\nSame combo formula, price ~about the same per account",
+          "color": "orange"
+        },
+        {
+          "id": "ph4fullscale",
+          "x": 1496.5523398699245,
+          "y": 819.2783267639315,
+          "title": "Phase 4: Full Scale — 16 Accounts",
+          "body": "Lucid + MFFU + TopStep + Alpha combined\n~16 funded accounts total, all max allocated on 50Ks",
+          "color": "orange"
+        },
+        {
+          "id": "acct16math",
+          "x": 1830,
+          "y": 674.4408888451413,
+          "title": "Per Account (Full Scale)",
+          "body": "$1,500-$1,700 withdrawn/mo\n-$100 cost/mo (avg)\n= $1,400-$1,600 net/mo per account",
+          "color": "green"
+        },
+        {
+          "id": "acct16total",
+          "x": 1952.391934617684,
+          "y": 933.0511110564266,
+          "title": "16 Accounts Total",
+          "body": "16 x $1,400-$1,600 net\n= $22,400-$25,600/month\n= ~$268,800-$307,200/yr (pre-tax)",
+          "color": "green"
+        },
+        {
+          "id": "inc2acct",
+          "x": -234.5469043855539,
+          "y": 25.02822597958729,
+          "title": "2 Accounts Income",
+          "body": "$3,000/month\n= $36,000/year",
+          "color": "blue"
+        },
+        {
+          "id": "inc8acct",
+          "x": -442.76609089050896,
+          "y": 245.72753142597188,
+          "title": "8 Accounts Income",
+          "body": "$11,200/month\n= $134,400/year",
+          "color": "blue"
+        },
+        {
+          "id": "inc16acct",
+          "x": -306.1092939544664,
+          "y": 511.00360625844223,
+          "title": "16 Accounts Income",
+          "body": "$24,000/month\n= $288,000/year",
+          "color": "blue"
+        },
+        {
+          "id": "startup50fail",
+          "x": 38.58033289822819,
+          "y": 115.56408283652573,
+          "title": "Startup Cost (50% Fail Rate)",
+          "body": "2 accounts: need 4 funded = $400\n8 accounts: need 16 funded = $1,600\n16 accounts: need 32 funded = $3,200\n(@ $100/eval attempt)",
+          "color": "green"
+        },
+        {
+          "id": "roiyear1",
+          "x": 34.77841943160368,
+          "y": 517.7294531450591,
+          "title": "ROI Year 1 (w/ 50% Fail)",
+          "body": "2 accounts: 8,300% ROI\n8 accounts: 8,300% ROI\n16 accounts: 8,900% ROI\n\nPayback: ~1 month for any tier",
+          "color": "yellow"
+        },
+        {
+          "id": "m12_fund3",
+          "x": 791.8285292079424,
+          "y": 105.16684565719726,
+          "title": "Months 1-2: Fund 3 Accounts",
+          "body": "3 accounts × 2 attempts (50% fail) = 6 challenges\n= $600 total cost\nIncome: $0 (waiting for payout)\nNet: -$600",
+          "color": "red"
+        },
+        {
+          "id": "m3_payout3",
+          "x": 494.06303986254596,
+          "y": 527.1632061854327,
+          "title": "Month 3: First Payout (3 Accounts)",
+          "body": "3 × $1,400/month = $4,200\nRunning total: -$600 + $4,200 = +$3,600\nCan now reinvest to scale",
+          "color": "green"
+        },
+        {
+          "id": "m45_scale8",
+          "x": 645.4555233676244,
+          "y": 820.7448092781491,
+          "title": "Months 4-5: Scale to 8 (2 accounts added)",
+          "body": "Need 5 more accounts × 2 attempts = 10 challenges\n= $1,000 additional cost\n3 accts still paying: 3 × $1,400 × 2mo = $8,400\nNet YTD: $3,600 + $8,400 - $1,000 = +$11,000",
+          "color": "orange"
+        },
+        {
+          "id": "m6plus_full8",
+          "x": 182.37263264620782,
+          "y": 1161.822093470498,
+          "title": "Month 6+: All 8 Accounts Live",
+          "body": "8 × $1,400/month = $11,200/month\nFrom here, recurring $11,200/mo\nYear 1 total: $600 setup + (5mo × varying income) + (7mo × $11,200)",
+          "color": "green"
+        },
+        {
+          "id": "breakdown_3to8",
+          "x": 818.1284267505579,
+          "y": 1222.9607954235182,
+          "title": "$3→8 Accounts Cost Breakdown",
+          "body": "Initial 3 accounts: 6 challenges = $600\nAdditional 5 accounts: 10 challenges = $1,000\nTotal cost to reach 8: $1,600\n\n(At $100/50K challenge, 50% pass rate)",
+          "color": "green"
+        },
+        {
+          "id": "hiroayj",
+          "x": -83.04516188243576,
+          "y": -208.6245060629979,
+          "title": "Numbers",
+          "body": "",
+          "color": "purple"
         }
       ],
       "edges": [
@@ -175,11 +311,6 @@
           "id": "0ndp6ns",
           "a": "2w6usqg",
           "b": "6rpf3s5"
-        },
-        {
-          "id": "e6rppa1",
-          "a": "6rpf3s5",
-          "b": "pa1acct"
         },
         {
           "id": "epaea8",
@@ -195,8 +326,89 @@
           "id": "epraram",
           "a": "pa1acct",
           "b": "rampnote"
+        },
+        {
+          "id": "e6rpph1",
+          "a": "6rpf3s5",
+          "b": "ph1cheap"
+        },
+        {
+          "id": "eph1ph2",
+          "a": "ph1cheap",
+          "b": "ph2reinv"
+        },
+        {
+          "id": "eph2ph3",
+          "a": "ph2reinv",
+          "b": "ph3addfirms"
+        },
+        {
+          "id": "eph3ph4",
+          "a": "ph3addfirms",
+          "b": "ph4fullscale"
+        },
+        {
+          "id": "eph4math",
+          "a": "ph4fullscale",
+          "b": "acct16math"
+        },
+        {
+          "id": "emathtotal",
+          "a": "acct16math",
+          "b": "acct16total"
+        },
+        {
+          "id": "einc2to8",
+          "a": "inc2acct",
+          "b": "inc8acct"
+        },
+        {
+          "id": "einc8to16",
+          "a": "inc8acct",
+          "b": "inc16acct"
+        },
+        {
+          "id": "estartup",
+          "a": "inc8acct",
+          "b": "startup50fail"
+        },
+        {
+          "id": "eroi",
+          "a": "startup50fail",
+          "b": "roiyear1"
+        },
+        {
+          "id": "em12m3",
+          "a": "m12_fund3",
+          "b": "m3_payout3"
+        },
+        {
+          "id": "em3m45",
+          "a": "m3_payout3",
+          "b": "m45_scale8"
+        },
+        {
+          "id": "em45m6",
+          "a": "m45_scale8",
+          "b": "m6plus_full8"
+        },
+        {
+          "id": "em45cost",
+          "a": "m45_scale8",
+          "b": "breakdown_3to8"
+        },
+        {
+          "id": "9myfnh6",
+          "a": "m12_fund3",
+          "b": "ph2reinv"
         }
       ]
+    },
+    {
+      "id": "1bp6nh2",
+      "name": "Phases",
+      "nodes": [],
+      "edges": []
     }
   ],
   "activeBoard": "8flavqs"

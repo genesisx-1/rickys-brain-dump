@@ -59,6 +59,11 @@
   #zoomCtl { position: absolute; bottom: 92px; right: 16px; z-index: 20; display: flex; flex-direction: column; gap: 6px; }
   #boardSel { padding: 7px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-weight: 700; max-width: 190px; cursor: pointer; }
   #boardSel:hover { border-color: var(--accent); }
+  #crumbs { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: var(--dim); white-space: nowrap; max-width: 320px; overflow: hidden; }
+  #crumbs .crumb { cursor: pointer; }
+  #crumbs .crumb:hover { color: var(--text); text-decoration: underline; }
+  #crumbs .crumb.cur { color: var(--text); cursor: default; text-decoration: none; }
+  #crumbs .sep { color: #4a5568; }
   #zoomCtl button { width: 38px; height: 38px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; font-size: 17px; font-weight: 700; }
   #hint { position: absolute; bottom: 14px; left: 14px; z-index: 20; font-size: 12px; color: var(--dim); background: var(--panel); border: 1px solid var(--line); padding: 6px 12px; border-radius: 8px; }
   #canvas { flex: 1; position: relative; overflow: hidden; cursor: grab;
@@ -76,10 +81,13 @@
   }
   .card.sel { border-color: var(--card-c, var(--accent)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-c, var(--accent)) 35%, transparent), 0 6px 18px rgba(0,0,0,.5); }
   .card.dim { opacity: .18; }
+  .card.portal { border-style: dashed; cursor: pointer; }
   .card .t { font-weight: 700; font-size: 15px; outline: none; word-wrap: break-word; }
   .card .b { font-size: 13px; color: var(--dim); margin-top: 5px; outline: none; word-wrap: break-word; white-space: pre-wrap; min-height: 4px; }
   .card .t:empty::before { content: "Title…"; color: #4a5568; }
   .card .b:empty::before { content: "notes…"; color: #3c4657; }
+  .card .portalSub { font-weight: 700; color: var(--text); opacity: .8; cursor: pointer; }
+  .card img { width: 100%; border-radius: 8px; margin-bottom: 6px; pointer-events: none; }
   .card .dot {
     position: absolute; right: -9px; top: 50%; transform: translateY(-50%);
     width: 16px; height: 16px; border-radius: 50%; background: var(--card-c, var(--accent));
@@ -90,9 +98,11 @@
     position: absolute; top: -38px; left: 0; display: none; gap: 5px; align-items: center;
     background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 5px 8px;
   }
-  .card.sel .cardTools { display: flex; }
+  .card.solo-sel .cardTools { display: flex; }
   .cardTools .sw { width: 16px; height: 16px; border-radius: 50%; border: 2px solid transparent; }
   .cardTools .sw:hover { border-color: #fff; }
+  .cardTools .open { color: var(--accent2); font-weight: 800; padding: 0 4px; }
+  #marqueeBox { position: fixed; z-index: 200; background: rgba(124,92,255,.14); border: 1px solid var(--accent); border-radius: 4px; pointer-events: none; }
   .cardTools .del { color: var(--danger); font-weight: 800; padding: 0 4px; margin-left: 3px; }
 
   /* ─── Time Blocks ─── */
@@ -266,11 +276,14 @@
 <!-- ═══ BRAIN MAP ═══ -->
 <div class="view on" id="mapView">
   <div id="mapToolbar">
-    <select id="boardSel" title="switch board"></select>
+    <div id="crumbs"></div>
+    <select id="boardSel" title="jump to any board"></select>
     <button id="boardEditBtn" title="rename / delete this board">✎</button>
-    <button id="newBoardBtn" title="create a new board">＋ Board</button>
+    <button id="newBoardBtn" title="create a new top-level board">＋ Board</button>
+    <button id="subBoardBtn" title="group selected cards into a nested sub-board (or make an empty one)">📦 Sub-board</button>
     <button id="newCardBtn">＋ New card</button>
     <button id="fitBtn">⛶ Fit</button>
+    <button id="exportBtn" title="export this board">⬇ Export</button>
     <input id="search" placeholder="🔍 search cards…">
   </div>
   <div id="canvas">
@@ -455,7 +468,9 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
 const canvas = document.getElementById('canvas'), world = document.getElementById('world');
 const cardsEl = document.getElementById('cards'), edgeG = document.getElementById('edgeG');
 let cam = { x: 40, y: 40, z: 1 };
-let sel = { type: null, id: null };   // 'node' | 'edge'
+let selectedNodes = new Set();   // multi-select of card ids
+let selectedEdge = null;
+let cardClipboard = null;
 
 function applyCam() { world.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`; }
 applyCam();
@@ -463,14 +478,14 @@ applyCam();
 function renderMap() {
   cardsEl.innerHTML = '';
   for (const n of board().nodes) cardsEl.appendChild(makeCard(n));
-  drawEdges();
+  refreshSelectionUI();
   applySearch();
 }
 
 const seenNodes = new Set();
 function makeCard(n) {
   const el = document.createElement('div');
-  el.className = 'card' + (sel.type === 'node' && sel.id === n.id ? ' sel' : '');
+  el.className = 'card' + (n.boardRef ? ' portal' : '');
   if (!seenNodes.has(n.id)) { el.classList.add('pop'); seenNodes.add(n.id); }
   el.dataset.id = n.id;
   el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
@@ -482,47 +497,90 @@ function makeCard(n) {
     s.onclick = e => { e.stopPropagation(); n.color = name; touch(); renderMap(); };
     tools.appendChild(s);
   }
+  if (n.boardRef) {
+    const open = document.createElement('button'); open.className = 'open'; open.textContent = '⤢'; open.title = 'open sub-board';
+    open.onclick = e => { e.stopPropagation(); openBoard(n.boardRef); };
+    tools.appendChild(open);
+  }
   const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕'; del.title = 'delete card';
-  del.onclick = e => { e.stopPropagation(); deleteNode(n.id); };
+  del.onclick = e => { e.stopPropagation(); deleteNodes([n.id]); };
   tools.appendChild(del);
   el.appendChild(tools);
 
-  const t = document.createElement('div'); t.className = 't'; t.contentEditable = true; t.textContent = n.title || '';
-  const b = document.createElement('div'); b.className = 'b'; b.contentEditable = true; b.textContent = n.body || '';
-  t.oninput = () => { n.title = t.textContent; touch(); };
-  b.oninput = () => { n.body = b.textContent; touch(); };
-  [t, b].forEach(x => {
-    x.onmousedown = e => e.stopPropagation();
-    x.onfocus = () => selectThing('node', n.id, el);
-  });
-  el.appendChild(t); el.appendChild(b);
+  if (n.img) { const img = document.createElement('img'); img.src = n.img; img.draggable = false; el.appendChild(img); }
 
-  const dot = document.createElement('div'); dot.className = 'dot'; dot.title = 'drag to connect';
+  const t = document.createElement('div'); t.className = 't'; t.contentEditable = true; t.textContent = n.title || '';
+  t.oninput = () => {
+    n.title = t.textContent; touch();
+    if (n.boardRef) { const cb = state.boards.find(x => x.id === n.boardRef); if (cb) { cb.name = n.title; renderBoards(); } }
+  };
+  t.onmousedown = e => e.stopPropagation();
+  t.onfocus = () => selectNode(n.id);
+  el.appendChild(t);
+
+  if (n.boardRef) {
+    const cb = state.boards.find(x => x.id === n.boardRef);
+    const sub = document.createElement('div'); sub.className = 'b portalSub';
+    sub.textContent = cb ? `📦 ${cb.nodes.length} card${cb.nodes.length === 1 ? '' : 's'} inside — double-click to open` : '⚠️ sub-board missing';
+    el.appendChild(sub);
+    el.ondblclick = e => { if (e.target === t) return; openBoard(n.boardRef); };
+  } else {
+    const b = document.createElement('div'); b.className = 'b'; b.contentEditable = true; b.textContent = n.body || '';
+    b.oninput = () => { n.body = b.textContent; touch(); };
+    b.onmousedown = e => e.stopPropagation();
+    b.onfocus = () => selectNode(n.id);
+    el.appendChild(b);
+  }
+
+  const dot = document.createElement('div'); dot.className = 'dot'; dot.title = 'drag to connect — drop on empty space to spin off a new linked card';
   dot.onmousedown = e => { e.stopPropagation(); e.preventDefault(); startConnect(n, e); };
   el.appendChild(dot);
 
-  el.onmousedown = e => { e.stopPropagation(); selectThing('node', n.id, el); startDragCard(n, el, e); };
+  el.onmousedown = e => {
+    e.stopPropagation();
+    const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+    if (additive) { selectNode(n.id, true); return; }
+    if (!(selectedNodes.size > 1 && selectedNodes.has(n.id))) selectNode(n.id, false);
+    startDragCard(n, el, e);
+  };
   return el;
 }
 
-function selectThing(type, id) {
-  sel = { type, id };
-  document.querySelectorAll('.card').forEach(c => c.classList.toggle('sel', type === 'node' && c.dataset.id === id));
+/* ── selection (supports multi-select like Lucidchart) ── */
+function selectNode(id, additive = false) {
+  if (additive) { selectedNodes.has(id) ? selectedNodes.delete(id) : selectedNodes.add(id); }
+  else selectedNodes = new Set([id]);
+  selectedEdge = null;
+  refreshSelectionUI();
+}
+function selectEdgeById(id) { selectedNodes = new Set(); selectedEdge = id; refreshSelectionUI(); }
+function clearSelection() { selectedNodes = new Set(); selectedEdge = null; refreshSelectionUI(); }
+function refreshSelectionUI() {
+  document.querySelectorAll('.card').forEach(el => {
+    const on = selectedNodes.has(el.dataset.id);
+    el.classList.toggle('sel', on);
+    el.classList.toggle('solo-sel', on && selectedNodes.size === 1);
+  });
+  const hint = document.getElementById('hint');
+  if (hint) hint.textContent = selectedNodes.size > 1
+    ? `${selectedNodes.size} selected — drag to move together · ⌘C/⌘V copy-paste · Delete removes all`
+    : DEFAULT_HINT;
   drawEdges();
 }
+const DEFAULT_HINT = "double-click = new card · drag ● dot (drop on empty space = new linked card) · shift-click/shift-drag = multi-select · ⌘C/⌘V copy-paste · Delete removes selection";
 
-function deleteNode(id) {
-  const b = board();
-  b.nodes = b.nodes.filter(n => n.id !== id);
-  b.edges = b.edges.filter(e => e.a !== id && e.b !== id);
-  sel = { type: null, id: null }; touch(); renderMap();
+function deleteNodes(ids) {
+  const b = board(); const idSet = new Set(ids);
+  b.nodes = b.nodes.filter(n => !idSet.has(n.id));
+  b.edges = b.edges.filter(e => !idSet.has(e.a) && !idSet.has(e.b));
+  clearSelection(); touch(); renderMap();
 }
 
 function addNode(wx, wy, title = '', body = '', color = 'purple') {
   const n = { id: uid(), x: wx, y: wy, title, body, color };
   board().nodes.push(n); touch(); renderMap();
   const el = cardsEl.querySelector(`[data-id="${n.id}"]`);
-  if (el) { selectThing('node', n.id); el.querySelector('.t').focus(); }
+  if (el) { selectNode(n.id); el.querySelector('.t').focus(); }
   return n;
 }
 
@@ -536,24 +594,30 @@ document.getElementById('newCardBtn').onclick = () => {
   addNode((r.width / 2 - cam.x) / cam.z - 115 + Math.random() * 40, (r.height / 2 - cam.y) / cam.z - 30 + Math.random() * 40);
 };
 
-/* drag card */
+/* drag card — moves the whole selection together when the dragged card is part of a multi-select */
 function startDragCard(n, el, e) {
-  const sx = e.clientX, sy = e.clientY, ox = n.x, oy = n.y;
+  const ids = selectedNodes.size > 1 && selectedNodes.has(n.id) ? [...selectedNodes] : [n.id];
+  const group = ids.map(id => board().nodes.find(x => x.id === id)).filter(Boolean).map(nd => ({ nd, ox: nd.x, oy: nd.y }));
+  const sx = e.clientX, sy = e.clientY;
   let moved = false;
   const mv = ev => {
     const dx = (ev.clientX - sx) / cam.z, dy = (ev.clientY - sy) / cam.z;
     if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
-    n.x = ox + dx; n.y = oy + dy;
-    el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+    for (const g of group) {
+      g.nd.x = g.ox + dx; g.nd.y = g.oy + dy;
+      const cel = cardsEl.querySelector(`[data-id="${g.nd.id}"]`);
+      if (cel) { cel.style.left = g.nd.x + 'px'; cel.style.top = g.nd.y + 'px'; }
+    }
     drawEdges();
   };
   const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); if (moved) touch(); };
   document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
 }
 
-/* connect */
+/* connect — drop on another card to link them; drop on empty space to spin off a new linked card */
 let tempLine = null;
 function startConnect(n, e) {
+  const startX = e.clientX, startY = e.clientY;
   tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   tempLine.setAttribute('stroke', COLORS[n.color] || '#7c5cff');
   tempLine.setAttribute('stroke-width', 2.5); tempLine.setAttribute('fill', 'none');
@@ -568,13 +632,19 @@ function startConnect(n, e) {
   const up = ev => {
     document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
     tempLine.remove(); tempLine = null;
-    const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.card');
+    const dropEl = document.elementFromPoint(ev.clientX, ev.clientY);
+    const target = dropEl?.closest('.card');
     if (target && target.dataset.id !== n.id) {
       const a = n.id, b = target.dataset.id;
       if (!board().edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a))) {
         board().edges.push({ id: uid(), a, b }); touch();
       }
       drawEdges();
+    } else if (!target && dropEl?.closest('#canvas') && Math.hypot(ev.clientX - startX, ev.clientY - startY) > 15) {
+      const r = canvas.getBoundingClientRect();
+      const wx = (ev.clientX - r.left - cam.x) / cam.z - 115, wy = (ev.clientY - r.top - cam.y) / cam.z - 20;
+      const created = addNode(wx, wy, '', '', n.color);
+      board().edges.push({ id: uid(), a: n.id, b: created.id }); touch(); drawEdges();
     }
   };
   document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
@@ -597,7 +667,7 @@ function drawEdges() {
     if (!na || !nb) continue;
     const A = nodeCenter(na), B = nodeCenter(nb);
     const d = curve(A.x, A.y, B.x, B.y);
-    const selEdge = sel.type === 'edge' && sel.id === e.id;
+    const selEdge = selectedEdge === e.id;
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     p.setAttribute('d', d); p.setAttribute('class', 'edge'); p.setAttribute('fill', 'none');
     p.setAttribute('stroke', selEdge ? '#fff' : (COLORS[na.color] || '#7c5cff'));
@@ -605,21 +675,47 @@ function drawEdges() {
     const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     hit.setAttribute('d', d); hit.setAttribute('class', 'hit'); hit.setAttribute('fill', 'none');
     hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', 14);
-    hit.addEventListener('mousedown', ev => { ev.stopPropagation(); selectThing('edge', e.id); drawEdges(); });
+    hit.addEventListener('mousedown', ev => { ev.stopPropagation(); selectEdgeById(e.id); });
     edgeG.appendChild(p); edgeG.appendChild(hit);
   }
 }
 
-/* pan + zoom */
+/* pan + zoom + marquee (shift-drag = Lucidchart-style rubber-band multi-select) */
 canvas.addEventListener('mousedown', e => {
   if (e.target.closest('.card')) return;
-  selectThing(null, null);
+  if (e.shiftKey || e.metaKey || e.ctrlKey) { startMarquee(e); return; }
+  clearSelection();
   canvas.classList.add('panning');
   const sx = e.clientX, sy = e.clientY, ox = cam.x, oy = cam.y;
   const mv = ev => { cam.x = ox + ev.clientX - sx; cam.y = oy + ev.clientY - sy; applyCam(); };
   const up = () => { canvas.classList.remove('panning'); document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
   document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
 });
+function startMarquee(e) {
+  const startX = e.clientX, startY = e.clientY;
+  const preExisting = new Set(selectedNodes);
+  const box = document.createElement('div'); box.id = 'marqueeBox';
+  document.body.appendChild(box);
+  const mv = ev => {
+    const x = Math.min(startX, ev.clientX), y = Math.min(startY, ev.clientY);
+    const w = Math.abs(ev.clientX - startX), h = Math.abs(ev.clientY - startY);
+    box.style.left = x + 'px'; box.style.top = y + 'px'; box.style.width = w + 'px'; box.style.height = h + 'px';
+    const m = { left: x, top: y, right: x + w, bottom: y + h };
+    document.querySelectorAll('.card').forEach(el => {
+      const r = el.getBoundingClientRect();
+      const hit = !(r.right < m.left || r.left > m.right || r.bottom < m.top || r.top > m.bottom);
+      el.classList.toggle('sel', hit || preExisting.has(el.dataset.id));
+    });
+  };
+  const up = () => {
+    document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
+    document.querySelectorAll('.card.sel').forEach(el => selectedNodes.add(el.dataset.id));
+    box.remove();
+    selectedEdge = null;
+    refreshSelectionUI();
+  };
+  document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+}
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
   const r = canvas.getBoundingClientRect();
@@ -656,15 +752,41 @@ function applySearch() {
   });
 }
 
-/* ── boards (Milanote-style) ── */
+/* ── boards (Milanote-style, with nesting) ── */
+function boardDepth(b) {
+  let d = 0, cur = b; const seen = new Set();
+  while (cur.parentBoard && !seen.has(cur.id)) {
+    seen.add(cur.id); cur = state.boards.find(x => x.id === cur.parentBoard);
+    if (!cur) break;
+    d++;
+  }
+  return d;
+}
 function renderBoards() {
   const sel = document.getElementById('boardSel');
-  sel.innerHTML = state.boards.map(b => `<option value="${b.id}" ${b.id === state.activeBoard ? 'selected' : ''}>${esc(b.name)}</option>`).join('');
+  sel.innerHTML = state.boards.map(b => `<option value="${b.id}" ${b.id === state.activeBoard ? 'selected' : ''}>${'　'.repeat(boardDepth(b))}${esc(b.name)}</option>`).join('');
+  renderCrumbs();
+}
+function renderCrumbs() {
+  const el = document.getElementById('crumbs');
+  const path = []; const seen = new Set();
+  let cur = board();
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id); path.unshift(cur);
+    cur = cur.parentBoard ? state.boards.find(b => b.id === cur.parentBoard) : null;
+  }
+  el.innerHTML = path.map((b, i) => (i ? '<span class="sep">▸</span>' : '') +
+    `<span class="crumb${i === path.length - 1 ? ' cur' : ''}" data-id="${b.id}">${esc(b.name)}</span>`).join('');
+  el.querySelectorAll('.crumb:not(.cur)').forEach(c => c.onclick = () => openBoard(c.dataset.id));
+}
+function openBoard(id) {
+  if (!state.boards.some(b => b.id === id)) { toast('⚠️ that sub-board was deleted'); return; }
+  state.activeBoard = id;
+  clearSelection(); renderBoards(); renderMap(); fitView();
 }
 document.getElementById('boardSel').onchange = e => {
   state.activeBoard = e.target.value;
-  sel = { type: null, id: null };
-  touch(); renderMap(); fitView();
+  clearSelection(); touch(); renderBoards(); renderMap(); fitView();
 };
 document.getElementById('newBoardBtn').onclick = () => {
   openModal(`<h3>＋ New board</h3>
@@ -690,20 +812,187 @@ document.getElementById('boardEditBtn').onclick = () => {
   const dl = document.getElementById('bDel');
   if (dl) dl.onclick = () => {
     if (!confirm(`Delete "${b.name}" and its ${b.nodes.length} card(s)? This can't be undone.`)) return;
+    const fallback = (b.parentBoard && state.boards.some(x => x.id === b.parentBoard)) ? b.parentBoard : state.boards.find(x => x.id !== b.id)?.id;
     state.boards = state.boards.filter(x => x.id !== b.id);
-    state.activeBoard = state.boards[0].id;
+    state.activeBoard = fallback || state.boards[0].id;
     touch(); closeModal(); renderBoards(); renderMap(); fitView();
   };
 };
 
-/* delete key */
+/* nested sub-boards — group selected cards into their own board, collapsed into one tile */
+document.getElementById('subBoardBtn').onclick = () => {
+  const ids = [...selectedNodes];
+  openModal(`<h3>📦 ${ids.length ? 'Group into sub-board' : 'New sub-board'}</h3>
+    <div class="row"><div><label>Name</label><input id="sbName" placeholder="Phase 2, Content ideas…"></div></div>
+    <div class="tip">${ids.length ? `${ids.length} selected card${ids.length === 1 ? '' : 's'} will move inside this new board and collapse into one tile here.` : 'Creates an empty board nested under this one — open the tile, drop cards inside, then come back here.'}</div>
+    <div class="btns"><button class="pri" id="sbSave">Create</button><button class="sec" id="sbCancel">Cancel</button></div>`);
+  document.getElementById('sbCancel').onclick = closeModal;
+  document.getElementById('sbSave').onclick = () => {
+    const name = document.getElementById('sbName').value.trim() || 'Sub-board';
+    const parent = board();
+    let childNodes = [], childEdges = [], cx, cy;
+    if (ids.length) {
+      const idSet = new Set(ids);
+      childNodes = parent.nodes.filter(n => idSet.has(n.id)).map(n => ({ ...n }));
+      childEdges = parent.edges.filter(e => idSet.has(e.a) && idSet.has(e.b)).map(e => ({ ...e }));
+      cx = childNodes.reduce((s, n) => s + n.x, 0) / childNodes.length;
+      cy = childNodes.reduce((s, n) => s + n.y, 0) / childNodes.length;
+      const dx = 80 - cx, dy = 80 - cy;
+      childNodes.forEach(n => { n.x += dx; n.y += dy; });
+      parent.nodes = parent.nodes.filter(n => !idSet.has(n.id));
+      parent.edges = parent.edges.filter(e => !idSet.has(e.a) && !idSet.has(e.b));
+    } else {
+      const r = canvas.getBoundingClientRect();
+      cx = (r.width / 2 - cam.x) / cam.z; cy = (r.height / 2 - cam.y) / cam.z;
+    }
+    const childBoard = { id: uid(), name, parentBoard: parent.id, nodes: childNodes, edges: childEdges };
+    state.boards.push(childBoard);
+    parent.nodes.push({ id: uid(), x: cx - 115, y: cy - 20, title: name, body: '', color: 'blue', boardRef: childBoard.id });
+    touch(); closeModal(); renderBoards(); renderMap(); fitView();
+    toast(`📦 "${name}" created — double-click the tile to open it`);
+  };
+  document.getElementById('sbName').focus();
+};
+
+/* export current board */
+document.getElementById('exportBtn').onclick = () => {
+  openModal(`<h3>⬇ Export "${esc(board().name)}"</h3>
+    <div class="btns">
+      <button class="pri" id="expPng">🖼️ PNG image</button>
+      <button class="sec" id="expJson">📄 JSON file</button>
+      <button class="sec" id="expCancel">Cancel</button>
+    </div>`);
+  document.getElementById('expCancel').onclick = closeModal;
+  document.getElementById('expJson').onclick = () => { exportBoardJSON(); closeModal(); };
+  document.getElementById('expPng').onclick = () => { exportBoardPNG(); closeModal(); };
+};
+function exportBoardJSON() {
+  const b = board();
+  const blob = new Blob([JSON.stringify({ name: b.name, nodes: b.nodes, edges: b.edges }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (b.name || 'board').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.json';
+  a.click();
+  toast('📄 board exported as JSON');
+}
+function exportBoardPNG() {
+  const b = board();
+  if (!b.nodes.length) return toast('⚠️ nothing to export — board is empty');
+  const PAD = 60;
+  const xs = b.nodes.map(n => n.x), ys = b.nodes.map(n => n.y);
+  const minX = Math.min(...xs) - PAD, minY = Math.min(...ys) - PAD;
+  const maxX = Math.max(...xs) + 300, maxY = Math.max(...ys) + 180;
+  const W = maxX - minX, H = maxY - minY;
+  const edgesSvg = b.edges.map(e => {
+    const na = b.nodes.find(n => n.id === e.a), nb = b.nodes.find(n => n.id === e.b);
+    if (!na || !nb) return '';
+    return `<path d="${curve(na.x - minX + 115, na.y - minY + 35, nb.x - minX + 115, nb.y - minY + 35)}" stroke="${COLORS[na.color] || '#7c5cff'}" stroke-width="2.5" fill="none" opacity=".6"/>`;
+  }).join('');
+  const cardsHtml = b.nodes.map(n => {
+    const c = COLORS[n.color] || COLORS.purple;
+    const img = n.img ? `<img src="${n.img}" style="width:100%;border-radius:8px;margin-bottom:6px">` : '';
+    const body = n.boardRef ? `<div style="font-weight:700;opacity:.8">📦 nested board</div>` : `<div style="font-size:13px;color:#8b96a8;white-space:pre-wrap">${esc(n.body || '')}</div>`;
+    return `<div style="position:absolute;left:${n.x - minX}px;top:${n.y - minY}px;width:230px;background:#161b24;border:1.5px solid #2a3242;border-top:4px solid ${c};border-radius:12px;padding:12px 14px 10px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#e8ecf3">${img}<div style="font-weight:700;font-size:15px">${esc(n.title || '')}</div>${body}</div>`;
+  }).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="100%" height="100%" fill="#0e1116"/>${edgesSvg}<foreignObject width="${W}" height="${H}"><div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${W}px;height:${H}px">${cardsHtml}</div></foreignObject></svg>`;
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  const img = new Image();
+  img.onload = () => {
+    const scale = 2;
+    const cvs = document.createElement('canvas'); cvs.width = W * scale; cvs.height = H * scale;
+    const ctx = cvs.getContext('2d'); ctx.scale(scale, scale); ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+    cvs.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (b.name || 'board').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.png';
+      a.click();
+      toast('🖼️ board exported as PNG');
+    });
+  };
+  img.onerror = () => toast('⚠️ PNG export failed — try JSON export instead');
+  img.src = url;
+}
+
+/* delete key — works on the whole multi-selection */
 document.addEventListener('keydown', e => {
   if (e.key !== 'Delete' && e.key !== 'Backspace') return;
   const a = document.activeElement;
   if (a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName))) return;
-  if (sel.type === 'node') { e.preventDefault(); deleteNode(sel.id); }
-  if (sel.type === 'edge') { e.preventDefault(); board().edges = board().edges.filter(x => x.id !== sel.id); sel = { type: null, id: null }; touch(); drawEdges(); }
+  if (selectedNodes.size) { e.preventDefault(); deleteNodes([...selectedNodes]); }
+  else if (selectedEdge) { e.preventDefault(); board().edges = board().edges.filter(x => x.id !== selectedEdge); selectedEdge = null; touch(); drawEdges(); }
 });
+
+/* copy / paste cards — ⌘C copies the selection, ⌘V pastes (works across boards too) */
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'c') return;
+  const a = document.activeElement;
+  if (a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName))) return;
+  if (!document.getElementById('mapView').classList.contains('on') || !selectedNodes.size) return;
+  e.preventDefault();
+  const ids = new Set(selectedNodes);
+  const nodes = board().nodes.filter(n => ids.has(n.id)).map(n => ({ ...n }));
+  const edges = board().edges.filter(ed => ids.has(ed.a) && ids.has(ed.b)).map(ed => ({ ...ed }));
+  cardClipboard = JSON.parse(JSON.stringify({ nodes, edges }));
+  toast(`📋 copied ${nodes.length} card${nodes.length === 1 ? '' : 's'}`);
+});
+
+/* paste — our own card clipboard, or an image straight from the OS clipboard */
+document.addEventListener('paste', e => {
+  const a = document.activeElement;
+  if (a && (a.isContentEditable || /INPUT|TEXTAREA/.test(a.tagName))) return; // let normal text paste happen
+  if (!document.getElementById('mapView').classList.contains('on')) return;
+  const items = e.clipboardData && e.clipboardData.items;
+  if (items) {
+    for (const it of items) {
+      if (it.type && it.type.startsWith('image/')) {
+        e.preventDefault();
+        pasteImageCard(it.getAsFile());
+        return;
+      }
+    }
+  }
+  if (cardClipboard && cardClipboard.nodes.length) { e.preventDefault(); pasteClipboard(); }
+});
+function pasteClipboard() {
+  const idMap = {};
+  const newNodes = cardClipboard.nodes.map(n => { const id = uid(); idMap[n.id] = id; return { ...n, id, x: n.x + 40, y: n.y + 40 }; });
+  const newEdges = cardClipboard.edges.map(ed => ({ id: uid(), a: idMap[ed.a], b: idMap[ed.b] }));
+  board().nodes.push(...newNodes); board().edges.push(...newEdges);
+  touch();
+  selectedNodes = new Set(newNodes.map(n => n.id)); selectedEdge = null;
+  renderMap();
+  toast(`📋 pasted ${newNodes.length} card${newNodes.length === 1 ? '' : 's'}`);
+}
+async function pasteImageCard(file) {
+  if (!file) return;
+  const dataUrl = await downscaleImage(file, 640, .82);
+  const r = canvas.getBoundingClientRect();
+  const wx = (r.width / 2 - cam.x) / cam.z - 115, wy = (r.height / 2 - cam.y) / cam.z - 100;
+  const n = { id: uid(), x: wx, y: wy, title: '', body: '', color: 'gray', img: dataUrl };
+  board().nodes.push(n); touch(); renderMap();
+  selectNode(n.id);
+  toast('🖼️ image pasted');
+}
+function downscaleImage(file, maxW, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const cvs = document.createElement('canvas'); cvs.width = w; cvs.height = h;
+        cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(cvs.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 /* ═══════════════ TIME BLOCKS ═══════════════ */
 let tMode = 'week';

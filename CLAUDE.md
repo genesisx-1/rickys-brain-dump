@@ -11,11 +11,14 @@ Ricky has ADHD. Keep replies **short and punchy**. One thing at a time. No walls
 ```jsonc
 {
   "savedAt": 1720000000000,   // ⚠️ ALWAYS set to current epoch ms when you edit — the page only applies updates with a newer savedAt
-  "boards": [                  // multiple boards, Milanote-style
+  "boards": [                  // boards can nest (Milanote-style) via parentBoard
     {
       "id": "main", "name": "🧠 Main",
+      "parentBoard": null,   // omit/null for a top-level board; set to another board's id to nest under it
       "nodes": [               // this board's cards
-        { "id": "abc1234", "x": 60, "y": 60, "title": "Card title", "body": "notes\nwith newlines", "color": "purple" }
+        { "id": "abc1234", "x": 60, "y": 60, "title": "Card title", "body": "notes\nwith newlines", "color": "purple" },
+        { "id": "portal1", "x": 400, "y": 60, "title": "Phase 2", "body": "", "color": "blue", "boardRef": "<id of a nested board>" },
+        { "id": "imgcard1", "x": 700, "y": 60, "title": "", "body": "", "color": "gray", "img": "data:image/jpeg;base64,..." }
       ],
       "edges": [               // lines connecting cards (same board only)
         { "id": "e1", "a": "<node id>", "b": "<node id>" }
@@ -41,6 +44,7 @@ Ricky has ADHD. Keep replies **short and punchy**. One thing at a time. No walls
 - Cards are ~230px wide. Space them ≥ 270px apart horizontally, ≥ 150px vertically.
 - Cluster related cards near each other and **connect them with edges** — the connections are the whole point of a brain map.
 - Colors mean vibes, use them: `purple` ideas · `green` money/business · `blue` learning · `orange` projects · `pink` people · `yellow` insights from content · `red` urgent · `gray` someday/parked.
+- If a board is getting cluttered (lots of related cards for one phase/topic), group them into a **nested sub-board**: create a new board with `parentBoard` set to the current board's id, move those nodes+edges into it, and leave one "portal" card behind on the parent with `boardRef` pointing at the new board's id (title = the sub-board's name, no body needed — the app renders a card-count subtitle automatically).
 - Put new clusters BELOW or to the RIGHT of existing cards (check existing x/y first — don't stack on top of old cards).
 - Preserve everything you weren't asked to change. Valid JSON only.
 
