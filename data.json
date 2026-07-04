@@ -1,16 +1,5 @@
 {
-  "savedAt": 1783190223410,
-  "nodes": [
-    {
-      "id": "welcome1",
-      "x": 60,
-      "y": 60,
-      "title": "Welcome to your brain 🧠",
-      "body": "Double-click anywhere to dump a thought.\nDrag my ● dot to another card to connect ideas.",
-      "color": "purple"
-    }
-  ],
-  "edges": [],
+  "savedAt": 1783190634454,
   "blocks": [
     {
       "id": "u100fnt",
@@ -98,5 +87,65 @@
       "talked": false
     }
   ],
-  "groups": {}
+  "groups": {},
+  "boards": [
+    {
+      "id": "main",
+      "name": "🧠 Main",
+      "nodes": [
+        {
+          "id": "welcome1",
+          "x": 60,
+          "y": 60,
+          "title": "Welcome to your brain 🧠",
+          "body": "Double-click anywhere to dump a thought.\nDrag my ● dot to another card to connect ideas.",
+          "color": "purple"
+        }
+      ],
+      "edges": []
+    },
+    {
+      "id": "8flavqs",
+      "name": "Trading Plan",
+      "nodes": [
+        {
+          "id": "6cjzfhy",
+          "x": 277.6672154724778,
+          "y": 113.6220647205731,
+          "title": "Get Unemployed",
+          "body": "",
+          "color": "purple"
+        },
+        {
+          "id": "2w6usqg",
+          "x": 596.6580563223893,
+          "y": 37.64060442767263,
+          "title": "Get Lucid Accounts",
+          "body": "3 Accounts = 3-6K Payouts",
+          "color": "purple"
+        },
+        {
+          "id": "6rpf3s5",
+          "x": 819.9116559345637,
+          "y": 213.66234153251727,
+          "title": "TopStep & Lucid Combo",
+          "body": "Scale to 8 Accounts",
+          "color": "purple"
+        }
+      ],
+      "edges": [
+        {
+          "id": "592cum5",
+          "a": "6cjzfhy",
+          "b": "2w6usqg"
+        },
+        {
+          "id": "0ndp6ns",
+          "a": "2w6usqg",
+          "b": "6rpf3s5"
+        }
+      ]
+    }
+  ],
+  "activeBoard": "8flavqs"
 }

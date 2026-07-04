@@ -53,6 +53,10 @@ Ricky has ADHD. Keep replies **short and punchy**. One thing at a time. No walls
 | "break this down: <youtube url>" | Pull the transcript (yt-dlp: `yt-dlp --skip-download --write-auto-subs --sub-format vtt -o t "<url>"`, install via brew if missing). Add a `content` entry with the transcript, then add the 3–7 best ideas as yellow cards on the map, connected to a hub card titled after the video. |
 | "block my week" / time stuff | Add `blocks` entries. Ask what days/hours only if genuinely unclear. |
 
+## Models / teammates
+
+Sessions can run on **Claude, Codex, or Gemini** — picked via the ＋ button in the terminal panel, or per-teammate (`team[].engine`). Each teammate has a working dir `.team/<id>/` containing the same persona written as `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` so whichever CLI launches picks it up. Teammate personas are self-contained (they embed the board rules above), so a Codex or Gemini teammate can drive the board too.
+
 ## Repo layout
 
 - `index.html` — the whole app (vanilla JS, no build step)

@@ -23,6 +23,21 @@ try {
 let WebSocketServer = null;
 try { ({ WebSocketServer } = require('ws')); } catch { console.warn('⚠️  ws not available — live sync disabled (run: npm install)'); }
 
+/* which AI CLIs are installed? (checked through the login shell so PATH matches the terminal) */
+const { execFileSync } = require('child_process');
+const AGENT_CMDS = { claude: 'claude', codex: 'codex', gemini: 'gemini' };
+let AGENTS_AVAIL = null;
+function detectAgents() {
+  if (AGENTS_AVAIL) return AGENTS_AVAIL;
+  AGENTS_AVAIL = {};
+  const shell = process.env.SHELL || '/bin/zsh';
+  for (const [k, cmd] of Object.entries(AGENT_CMDS)) {
+    try { execFileSync(shell, ['-ilc', 'command -v ' + cmd], { stdio: 'ignore', timeout: 6000 }); AGENTS_AVAIL[k] = true; }
+    catch { AGENTS_AVAIL[k] = false; }
+  }
+  return AGENTS_AVAIL;
+}
+
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
@@ -34,7 +49,7 @@ const server = http.createServer((req, res) => {
   // ── API ──
   if (u.pathname === '/api/ping') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, terminal: !!pty, live: !!WebSocketServer }));
+    return res.end(JSON.stringify({ ok: true, terminal: !!pty, live: !!WebSocketServer, agents: pty ? detectAgents() : {} }));
   }
   if (u.pathname === '/api/team-setup' && req.method === 'POST') {
     let body = '';
@@ -45,7 +60,8 @@ const server = http.createServer((req, res) => {
         if (!/^\.team\/[a-z0-9][a-z0-9-]*$/.test(dir)) throw new Error('bad dir');
         const full = path.join(ROOT, dir);
         fs.mkdirSync(full, { recursive: true });
-        fs.writeFileSync(path.join(full, 'CLAUDE.md'), String(brief || ''));
+        // write persona to every CLI's convention so Claude/Codex/Gemini all pick it up
+        for (const fn of ['CLAUDE.md', 'AGENTS.md', 'GEMINI.md']) fs.writeFileSync(path.join(full, fn), String(brief || ''));
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end('{"ok":true}');
       } catch (e) {
