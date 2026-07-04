@@ -1,5 +1,5 @@
 {
-  "savedAt": 1783190634454,
+  "savedAt": 1783191355341,
   "blocks": [
     {
       "id": "u100fnt",
@@ -131,6 +131,38 @@
           "title": "TopStep & Lucid Combo",
           "body": "Scale to 8 Accounts",
           "color": "purple"
+        },
+        {
+          "id": "pa1acct",
+          "x": 780,
+          "y": 420,
+          "title": "Per Account Math",
+          "body": "$1,500 withdrawn/mo\n-$100 cost/mo (avg)\n= $1,400 net/mo per account",
+          "color": "green"
+        },
+        {
+          "id": "ea8acct",
+          "x": 1100,
+          "y": 420,
+          "title": "8 Accounts Scaled",
+          "body": "$12,000 gross/mo (8 x $1,500)\n-$800 costs/mo (8 x $100)\n= $11,200 net/month",
+          "color": "green"
+        },
+        {
+          "id": "yr134k",
+          "x": 1100,
+          "y": 600,
+          "title": "Yearly Net: ~$134K",
+          "body": "$11,200/mo x 12\n= $134,400/yr\n(before taxes)",
+          "color": "green"
+        },
+        {
+          "id": "rampnote",
+          "x": 780,
+          "y": 600,
+          "title": "Ramp-up reality",
+          "body": "Assumes all 8 accounts funded + passing at once.\nRealistically stagger funding — combo scales as each account passes eval.",
+          "color": "gray"
         }
       ],
       "edges": [
@@ -143,6 +175,26 @@
           "id": "0ndp6ns",
           "a": "2w6usqg",
           "b": "6rpf3s5"
+        },
+        {
+          "id": "e6rppa1",
+          "a": "6rpf3s5",
+          "b": "pa1acct"
+        },
+        {
+          "id": "epaea8",
+          "a": "pa1acct",
+          "b": "ea8acct"
+        },
+        {
+          "id": "eea8yr",
+          "a": "ea8acct",
+          "b": "yr134k"
+        },
+        {
+          "id": "epraram",
+          "a": "pa1acct",
+          "b": "rampnote"
         }
       ]
     }
