@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>🧠 Ricky's Brain Dump</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b24; --panel2: #1d2431; --line: #2a3242;
+    --text: #e8ecf3; --dim: #8b96a8; --accent: #7c5cff; --accent2: #00d4a6;
+    --danger: #ff5470;
+    --c-purple:#7c5cff; --c-green:#00d4a6; --c-blue:#3da5ff; --c-orange:#ff9f43;
+    --c-pink:#ff6bcb; --c-yellow:#ffd166; --c-red:#ff5470; --c-gray:#5c6a80;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.45 -apple-system, "SF Pro", Segoe UI, Roboto, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  input, textarea, select { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; outline: none; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+  /* ─── Header ─── */
+  header {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: var(--panel); border-bottom: 1px solid var(--line); flex-shrink: 0; z-index: 50;
+  }
+  .logo { font-weight: 800; font-size: 17px; letter-spacing: -.3px; white-space: nowrap; }
+  .logo span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  nav { display: flex; gap: 4px; background: var(--bg); padding: 4px; border-radius: 10px; }
+  nav button { padding: 7px 16px; border-radius: 8px; color: var(--dim); font-weight: 600; }
+  nav button.on { background: var(--accent); color: #fff; }
+  .spacer { flex: 1; }
+  #focusBtn { padding: 7px 14px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--line); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #focusBtn.running { background: var(--accent2); color: #04150f; border-color: transparent; animation: none; }
+  #focusBtn.done { background: var(--danger); color: #fff; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .5; } }
+  #saveBtn { padding: 7px 16px; border-radius: 8px; background: linear-gradient(90deg, var(--accent), #9d7bff); color: #fff; font-weight: 700; white-space: nowrap; }
+  #saveStatus { font-size: 12px; color: var(--dim); white-space: nowrap; }
+  #saveStatus.dirty { color: var(--c-yellow); }
+
+  /* ─── Views ─── */
+  .view { flex: 1; display: none; position: relative; overflow: hidden; }
+  .view.on { display: flex; flex-direction: column; }
+
+  /* ─── Brain Map ─── */
+  #mapToolbar {
+    position: absolute; top: 12px; left: 12px; z-index: 20; display: flex; gap: 8px; align-items: center;
+  }
+  #mapToolbar button { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-weight: 600; }
+  #mapToolbar button:hover { border-color: var(--accent); }
+  #search { width: 190px; padding: 7px 12px; border-radius: 8px; background: var(--panel); }
+  #zoomCtl { position: absolute; bottom: 14px; right: 14px; z-index: 20; display: flex; flex-direction: column; gap: 6px; }
+  #zoomCtl button { width: 38px; height: 38px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; font-size: 17px; font-weight: 700; }
+  #hint { position: absolute; bottom: 14px; left: 14px; z-index: 20; font-size: 12px; color: var(--dim); background: var(--panel); border: 1px solid var(--line); padding: 6px 12px; border-radius: 8px; }
+  #canvas { flex: 1; position: relative; overflow: hidden; cursor: grab;
+    background-image: radial-gradient(circle, #222a38 1.2px, transparent 1.2px); background-size: 26px 26px; }
+  #canvas.panning { cursor: grabbing; }
+  #world { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+  #edgeSvg { position: absolute; top: -5000px; left: -5000px; overflow: visible; pointer-events: none; }
+  #edgeSvg path.hit { pointer-events: stroke; cursor: pointer; }
+
+  .card {
+    position: absolute; width: 230px; min-height: 60px; background: var(--panel);
+    border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px 10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.4); cursor: default; user-select: none;
+    border-top: 4px solid var(--card-c, var(--c-purple));
+  }
+  .card.sel { border-color: var(--card-c, var(--accent)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-c, var(--accent)) 35%, transparent), 0 6px 18px rgba(0,0,0,.5); }
+  .card.dim { opacity: .18; }
+  .card .t { font-weight: 700; font-size: 15px; outline: none; word-wrap: break-word; }
+  .card .b { font-size: 13px; color: var(--dim); margin-top: 5px; outline: none; word-wrap: break-word; white-space: pre-wrap; min-height: 4px; }
+  .card .t:empty::before { content: "Title…"; color: #4a5568; }
+  .card .b:empty::before { content: "notes…"; color: #3c4657; }
+  .card .dot {
+    position: absolute; right: -9px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; border-radius: 50%; background: var(--card-c, var(--accent));
+    border: 3px solid var(--bg); cursor: crosshair; opacity: 0; transition: opacity .15s;
+  }
+  .card:hover .dot, .card.sel .dot { opacity: 1; }
+  .cardTools {
+    position: absolute; top: -38px; left: 0; display: none; gap: 5px; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 5px 8px;
+  }
+  .card.sel .cardTools { display: flex; }
+  .cardTools .sw { width: 16px; height: 16px; border-radius: 50%; border: 2px solid transparent; }
+  .cardTools .sw:hover { border-color: #fff; }
+  .cardTools .del { color: var(--danger); font-weight: 800; padding: 0 4px; margin-left: 3px; }
+
+  /* ─── Time Blocks ─── */
+  #timeBar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; flex-shrink: 0; }
+  #timeBar .seg { display: flex; background: var(--panel); border-radius: 9px; padding: 3px; border: 1px solid var(--line); }
+  #timeBar .seg button { padding: 6px 14px; border-radius: 7px; color: var(--dim); font-weight: 600; }
+  #timeBar .seg button.on { background: var(--accent); color: #fff; }
+  #timeBar .nav { padding: 6px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; font-weight: 700; }
+  #timeLabel { font-weight: 800; font-size: 17px; margin: 0 6px; }
+  #timeGrid { flex: 1; overflow: auto; padding: 0 16px 16px; }
+
+  table.week { border-collapse: collapse; width: 100%; }
+  table.week th { position: sticky; top: 0; background: var(--bg); padding: 8px 4px; font-size: 13px; color: var(--dim); z-index: 5; }
+  table.week th.today { color: var(--accent2); }
+  table.week td { border: 1px solid var(--line); height: 46px; min-width: 110px; vertical-align: top; cursor: pointer; position: relative; }
+  table.week td:hover { background: #ffffff08; }
+  table.week td.hr { border: none; width: 58px; min-width: 58px; text-align: right; padding-right: 10px; font-size: 12px; color: var(--dim); cursor: default; }
+  table.week td.hr:hover { background: none; }
+  .blk {
+    position: absolute; left: 2px; right: 2px; top: 1px; border-radius: 7px; padding: 4px 8px;
+    font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; cursor: pointer; z-index: 3;
+    background: var(--blk-c, var(--c-purple)); box-shadow: 0 3px 8px rgba(0,0,0,.35);
+  }
+  .blk small { display: block; font-weight: 500; opacity: .85; }
+
+  .month { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .month .dh { text-align: center; color: var(--dim); font-size: 13px; font-weight: 700; padding: 4px; }
+  .mday { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 96px; padding: 6px; cursor: pointer; }
+  .mday:hover { border-color: var(--accent); }
+  .mday.out { opacity: .35; }
+  .mday.today { border-color: var(--accent2); }
+  .mday .n { font-size: 13px; font-weight: 700; color: var(--dim); margin-bottom: 4px; }
+  .mday.today .n { color: var(--accent2); }
+  .chip { font-size: 11px; font-weight: 600; color: #fff; background: var(--blk-c, var(--c-purple)); border-radius: 5px; padding: 2px 6px; margin-bottom: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+  /* ─── Content ─── */
+  #contentView { overflow: auto; }
+  .cwrap { max-width: 860px; margin: 0 auto; padding: 24px 20px 60px; width: 100%; }
+  .cwrap h2 { font-size: 22px; margin-bottom: 4px; }
+  .cwrap .sub { color: var(--dim); font-size: 13px; margin-bottom: 18px; }
+  .vidCard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-bottom: 12px; cursor: pointer; }
+  .vidCard:hover { border-color: var(--accent); }
+  .vidCard h3 { font-size: 16px; }
+  .vidCard .u { font-size: 12px; color: var(--accent2); margin-top: 2px; word-break: break-all; }
+  .vidCard .m { font-size: 12px; color: var(--dim); margin-top: 6px; }
+  .addBtn { display: block; width: 100%; padding: 14px; border: 2px dashed var(--line); border-radius: 14px; color: var(--dim); font-weight: 700; margin-bottom: 16px; }
+  .addBtn:hover { border-color: var(--accent); color: var(--text); }
+
+  /* ─── Modal ─── */
+  #modalBg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; z-index: 100; }
+  #modalBg.on { display: flex; }
+  #modal { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; width: min(680px, 92vw); max-height: 88vh; overflow: auto; }
+  #modal h3 { margin-bottom: 14px; font-size: 18px; }
+  #modal .row { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  #modal .row > * { flex: 1; }
+  #modal label { display: block; font-size: 12px; color: var(--dim); font-weight: 700; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .5px; }
+  #modal textarea { width: 100%; resize: vertical; }
+  #modal .btns { display: flex; gap: 10px; margin-top: 16px; }
+  #modal .btns .pri { background: var(--accent); color: #fff; padding: 10px 22px; border-radius: 9px; font-weight: 700; }
+  #modal .btns .sec { background: var(--panel2); border: 1px solid var(--line); padding: 10px 18px; border-radius: 9px; }
+  #modal .btns .dng { color: var(--danger); font-weight: 700; padding: 10px 14px; margin-left: auto; }
+  .swRow { display: flex; gap: 8px; align-items: center; }
+  .swRow .sw { width: 24px; height: 24px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
+  .swRow .sw.on { border-color: #fff; }
+  .transcript { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px; max-height: 320px; overflow: auto; font-size: 13.5px; line-height: 1.7; color: #c4cddb; white-space: pre-wrap; user-select: text; }
+  .tip { font-size: 12px; color: var(--dim); background: var(--panel2); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+</style>
+
+<header>
+  <div class="logo">🧠 <span>Ricky's Brain Dump</span></div>
+  <nav>
+    <button data-v="map" class="on">🗺️ Brain Map</button>
+    <button data-v="time">📅 Time Blocks</button>
+    <button data-v="content">🎬 Content</button>
+  </nav>
+  <div class="spacer"></div>
+  <span id="saveStatus">loading…</span>
+  <button id="focusBtn" title="25-min focus timer">🎯 Focus</button>
+  <button id="saveBtn" title="Write data.json into the repo folder">💾 Save</button>
+</header>
+
+<!-- ═══ BRAIN MAP ═══ -->
+<div class="view on" id="mapView">
+  <div id="mapToolbar">
+    <button id="newCardBtn">＋ New card</button>
+    <button id="fitBtn">⛶ Fit</button>
+    <input id="search" placeholder="🔍 search cards…">
+  </div>
+  <div id="canvas">
+    <div id="world">
+      <svg id="edgeSvg" width="10000" height="10000"><g id="edgeG" transform="translate(5000,5000)"></g></svg>
+      <div id="cards"></div>
+    </div>
+  </div>
+  <div id="zoomCtl">
+    <button id="zin">＋</button><button id="zout">－</button>
+  </div>
+  <div id="hint">double-click = new card · drag the ● dot to connect · Delete key removes selection</div>
+</div>
+
+<!-- ═══ TIME BLOCKS ═══ -->
+<div class="view" id="timeView">
+  <div id="timeBar">
+    <div class="seg">
+      <button data-t="day">Day</button><button data-t="week" class="on">Week</button><button data-t="month">Month</button>
+    </div>
+    <button class="nav" id="tPrev">‹</button>
+    <button class="nav" id="tToday">Today</button>
+    <button class="nav" id="tNext">›</button>
+    <span id="timeLabel"></span>
+  </div>
+  <div id="timeGrid"></div>
+</div>
+
+<!-- ═══ CONTENT ═══ -->
+<div class="view" id="contentView">
+  <div class="cwrap">
+    <h2>🎬 Content Breakdowns</h2>
+    <div class="sub">Videos you watched → ideas you keep. Paste a link + transcript here, or drop the link to Claude in terminal and he'll pull the transcript and break it down onto your Brain Map.</div>
+    <button class="addBtn" id="addVidBtn">＋ Add a video</button>
+    <div id="vidList"></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL ═══ -->
+<div id="modalBg"><div id="modal"></div></div>
+
+<script>
+/* ═══════════════ STATE ═══════════════ */
+const COLORS = { purple:'#7c5cff', green:'#00d4a6', blue:'#3da5ff', orange:'#ff9f43', pink:'#ff6bcb', yellow:'#ffd166', red:'#ff5470', gray:'#5c6a80' };
+const uid = () => Math.random().toString(36).slice(2, 9);
+let state = null;
+let fileHandle = null;
+let dirty = false;
+
+const DEFAULT = () => ({
+  savedAt: Date.now(),
+  nodes: [{ id: uid(), x: 60, y: 60, title: "Welcome to your brain 🧠", body: "Double-click anywhere to dump a thought.\nDrag my ● dot to another card to connect ideas.", color: 'purple' }],
+  edges: [], blocks: [], content: []
+});
+
+async function loadState() {
+  let local = null, remote = null;
+  try { local = JSON.parse(localStorage.getItem('rbd') || 'null'); } catch {}
+  try { const r = await fetch('data.json?t=' + Date.now()); if (r.ok) remote = await r.json(); } catch {}
+  if (local && remote) state = (local.savedAt || 0) >= (remote.savedAt || 0) ? local : remote;
+  else state = local || remote || DEFAULT();
+  state.nodes ||= []; state.edges ||= []; state.blocks ||= []; state.content ||= [];
+  setStatus('loaded ✓');
+  renderMap(); renderTime(); renderContent();
+}
+
+let saveTimer;
+function touch() {
+  state.savedAt = Date.now(); dirty = true;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    localStorage.setItem('rbd', JSON.stringify(state));
+    setStatus('● saved in browser — hit 💾 Save to sync file', true);
+  }, 350);
+}
+function setStatus(msg, isDirty = false) {
+  const el = document.getElementById('saveStatus');
+  el.textContent = msg; el.className = isDirty ? 'dirty' : '';
+}
+
+/* Save → write data.json into the repo folder (File System Access API) */
+document.getElementById('saveBtn').onclick = async () => {
+  state.savedAt = Date.now();
+  localStorage.setItem('rbd', JSON.stringify(state));
+  const json = JSON.stringify(state, null, 2);
+  try {
+    if (!fileHandle && window.showSaveFilePicker) {
+      fileHandle = await showSaveFilePicker({ suggestedName: 'data.json', types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] });
+    }
+    if (fileHandle) {
+      const w = await fileHandle.createWritable(); await w.write(json); await w.close();
+      dirty = false; setStatus('✓ data.json saved ' + new Date().toLocaleTimeString());
+      return;
+    }
+  } catch (e) { if (e.name === 'AbortError') return; console.warn(e); }
+  // fallback: download
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  a.download = 'data.json'; a.click();
+  dirty = false; setStatus('✓ downloaded data.json — drop it in the repo folder');
+};
+
+/* ═══════════════ TABS ═══════════════ */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  document.getElementById(b.dataset.v + 'View').classList.add('on');
+  if (b.dataset.v === 'time') renderTime();
+});
+
+/* ═══════════════ BRAIN MAP ═══════════════ */
+const canvas = document.getElementById('canvas'), world = document.getElementById('world');
+const cardsEl = document.getElementById('cards'), edgeG = document.getElementById('edgeG');
+let cam = { x: 40, y: 40, z: 1 };
+let sel = { type: null, id: null };   // 'node' | 'edge'
+
+function applyCam() { world.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`; }
+applyCam();
+
+function renderMap() {
+  cardsEl.innerHTML = '';
+  for (const n of state.nodes) cardsEl.appendChild(makeCard(n));
+  drawEdges();
+  applySearch();
+}
+
+function makeCard(n) {
+  const el = document.createElement('div');
+  el.className = 'card' + (sel.type === 'node' && sel.id === n.id ? ' sel' : '');
+  el.dataset.id = n.id;
+  el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+  el.style.setProperty('--card-c', COLORS[n.color] || COLORS.purple);
+
+  const tools = document.createElement('div'); tools.className = 'cardTools';
+  for (const [name, hex] of Object.entries(COLORS)) {
+    const s = document.createElement('button'); s.className = 'sw'; s.style.background = hex; s.title = name;
+    s.onclick = e => { e.stopPropagation(); n.color = name; touch(); renderMap(); };
+    tools.appendChild(s);
+  }
+  const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕'; del.title = 'delete card';
+  del.onclick = e => { e.stopPropagation(); deleteNode(n.id); };
+  tools.appendChild(del);
+  el.appendChild(tools);
+
+  const t = document.createElement('div'); t.className = 't'; t.contentEditable = true; t.textContent = n.title || '';
+  const b = document.createElement('div'); b.className = 'b'; b.contentEditable = true; b.textContent = n.body || '';
+  t.oninput = () => { n.title = t.textContent; touch(); };
+  b.oninput = () => { n.body = b.textContent; touch(); };
+  [t, b].forEach(x => {
+    x.onmousedown = e => e.stopPropagation();
+    x.onfocus = () => selectThing('node', n.id, el);
+  });
+  el.appendChild(t); el.appendChild(b);
+
+  const dot = document.createElement('div'); dot.className = 'dot'; dot.title = 'drag to connect';
+  dot.onmousedown = e => { e.stopPropagation(); e.preventDefault(); startConnect(n, e); };
+  el.appendChild(dot);
+
+  el.onmousedown = e => { e.stopPropagation(); selectThing('node', n.id, el); startDragCard(n, el, e); };
+  return el;
+}
+
+function selectThing(type, id) {
+  sel = { type, id };
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('sel', type === 'node' && c.dataset.id === id));
+  drawEdges();
+}
+
+function deleteNode(id) {
+  state.nodes = state.nodes.filter(n => n.id !== id);
+  state.edges = state.edges.filter(e => e.a !== id && e.b !== id);
+  sel = { type: null, id: null }; touch(); renderMap();
+}
+
+function addNode(wx, wy, title = '', body = '', color = 'purple') {
+  const n = { id: uid(), x: wx, y: wy, title, body, color };
+  state.nodes.push(n); touch(); renderMap();
+  const el = cardsEl.querySelector(`[data-id="${n.id}"]`);
+  if (el) { selectThing('node', n.id); el.querySelector('.t').focus(); }
+  return n;
+}
+
+canvas.addEventListener('dblclick', e => {
+  if (e.target.closest('.card')) return;
+  const r = canvas.getBoundingClientRect();
+  addNode((e.clientX - r.left - cam.x) / cam.z - 115, (e.clientY - r.top - cam.y) / cam.z - 20);
+});
+document.getElementById('newCardBtn').onclick = () => {
+  const r = canvas.getBoundingClientRect();
+  addNode((r.width / 2 - cam.x) / cam.z - 115 + Math.random() * 40, (r.height / 2 - cam.y) / cam.z - 30 + Math.random() * 40);
+};
+
+/* drag card */
+function startDragCard(n, el, e) {
+  const sx = e.clientX, sy = e.clientY, ox = n.x, oy = n.y;
+  let moved = false;
+  const mv = ev => {
+    const dx = (ev.clientX - sx) / cam.z, dy = (ev.clientY - sy) / cam.z;
+    if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+    n.x = ox + dx; n.y = oy + dy;
+    el.style.left = n.x + 'px'; el.style.top = n.y + 'px';
+    drawEdges();
+  };
+  const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); if (moved) touch(); };
+  document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+}
+
+/* connect */
+let tempLine = null;
+function startConnect(n, e) {
+  tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  tempLine.setAttribute('stroke', COLORS[n.color] || '#7c5cff');
+  tempLine.setAttribute('stroke-width', 2.5); tempLine.setAttribute('fill', 'none');
+  tempLine.setAttribute('stroke-dasharray', '6 5');
+  edgeG.appendChild(tempLine);
+  const from = nodeCenter(n);
+  const mv = ev => {
+    const r = canvas.getBoundingClientRect();
+    const wx = (ev.clientX - r.left - cam.x) / cam.z, wy = (ev.clientY - r.top - cam.y) / cam.z;
+    tempLine.setAttribute('d', curve(from.x, from.y, wx, wy));
+  };
+  const up = ev => {
+    document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
+    tempLine.remove(); tempLine = null;
+    const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.card');
+    if (target && target.dataset.id !== n.id) {
+      const a = n.id, b = target.dataset.id;
+      if (!state.edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a))) {
+        state.edges.push({ id: uid(), a, b }); touch();
+      }
+      drawEdges();
+    }
+  };
+  document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+}
+
+function nodeCenter(n) {
+  const el = cardsEl.querySelector(`[data-id="${n.id}"]`);
+  const w = el ? el.offsetWidth : 230, h = el ? el.offsetHeight : 70;
+  return { x: n.x + w / 2, y: n.y + h / 2 };
+}
+function curve(x1, y1, x2, y2) {
+  const dx = Math.max(Math.abs(x2 - x1) * .4, 40);
+  return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+}
+
+function drawEdges() {
+  edgeG.querySelectorAll('.edge, .hit').forEach(p => p.remove());
+  for (const e of state.edges) {
+    const na = state.nodes.find(n => n.id === e.a), nb = state.nodes.find(n => n.id === e.b);
+    if (!na || !nb) continue;
+    const A = nodeCenter(na), B = nodeCenter(nb);
+    const d = curve(A.x, A.y, B.x, B.y);
+    const selEdge = sel.type === 'edge' && sel.id === e.id;
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', d); p.setAttribute('class', 'edge'); p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', selEdge ? '#fff' : (COLORS[na.color] || '#7c5cff'));
+    p.setAttribute('stroke-width', selEdge ? 3.5 : 2.2); p.setAttribute('opacity', selEdge ? 1 : .55);
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hit.setAttribute('d', d); hit.setAttribute('class', 'hit'); hit.setAttribute('fill', 'none');
+    hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', 14);
+    hit.addEventListener('mousedown', ev => { ev.stopPropagation(); selectThing('edge', e.id); drawEdges(); });
+    edgeG.appendChild(p); edgeG.appendChild(hit);
+  }
+}
+
+/* pan + zoom */
+canvas.addEventListener('mousedown', e => {
+  if (e.target.closest('.card')) return;
+  selectThing(null, null);
+  canvas.classList.add('panning');
+  const sx = e.clientX, sy = e.clientY, ox = cam.x, oy = cam.y;
+  const mv = ev => { cam.x = ox + ev.clientX - sx; cam.y = oy + ev.clientY - sy; applyCam(); };
+  const up = () => { canvas.classList.remove('panning'); document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+  document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const nz = Math.min(2.5, Math.max(.2, cam.z * (e.deltaY < 0 ? 1.09 : 0.92)));
+  cam.x = mx - (mx - cam.x) * (nz / cam.z);
+  cam.y = my - (my - cam.y) * (nz / cam.z);
+  cam.z = nz; applyCam();
+}, { passive: false });
+document.getElementById('zin').onclick = () => { cam.z = Math.min(2.5, cam.z * 1.2); applyCam(); };
+document.getElementById('zout').onclick = () => { cam.z = Math.max(.2, cam.z / 1.2); applyCam(); };
+document.getElementById('fitBtn').onclick = fitView;
+function fitView() {
+  if (!state.nodes.length) return;
+  const xs = state.nodes.map(n => n.x), ys = state.nodes.map(n => n.y);
+  const minX = Math.min(...xs) - 60, minY = Math.min(...ys) - 60;
+  const maxX = Math.max(...xs) + 300, maxY = Math.max(...ys) + 180;
+  const r = canvas.getBoundingClientRect();
+  cam.z = Math.min(2, Math.max(.2, Math.min(r.width / (maxX - minX), r.height / (maxY - minY))));
+  cam.x = (r.width - (maxX - minX) * cam.z) / 2 - minX * cam.z;
+  cam.y = (r.height - (maxY - minY) * cam.z) / 2 - minY * cam.z;
+  applyCam();
+}
+
+/* search */
+document.getElementById('search').oninput = applySearch;
+function applySearch() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  document.querySelectorAll('.card').forEach(el => {
+    if (!q) return el.classList.remove('dim');
+    const n = state.nodes.find(n => n.id === el.dataset.id);
+    const hit = (n.title + ' ' + n.body).toLowerCase().includes(q);
+    el.classList.toggle('dim', !hit);
+  });
+}
+
+/* delete key */
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+  const a = document.activeElement;
+  if (a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName))) return;
+  if (sel.type === 'node') { e.preventDefault(); deleteNode(sel.id); }
+  if (sel.type === 'edge') { e.preventDefault(); state.edges = state.edges.filter(x => x.id !== sel.id); sel = { type: null, id: null }; touch(); drawEdges(); }
+});
+
+/* ═══════════════ TIME BLOCKS ═══════════════ */
+let tMode = 'week';
+let tAnchor = new Date(); tAnchor.setHours(0, 0, 0, 0);
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const HOURS = Array.from({length: 18}, (_, i) => i + 5); // 5am–10pm
+const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const hrLabel = h => h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h-12) + ' PM';
+
+document.querySelectorAll('#timeBar .seg button').forEach(b => b.onclick = () => {
+  tMode = b.dataset.t;
+  document.querySelectorAll('#timeBar .seg button').forEach(x => x.classList.toggle('on', x === b));
+  renderTime();
+});
+document.getElementById('tPrev').onclick = () => { shiftAnchor(-1); };
+document.getElementById('tNext').onclick = () => { shiftAnchor(1); };
+document.getElementById('tToday').onclick = () => { tAnchor = new Date(); tAnchor.setHours(0,0,0,0); renderTime(); };
+function shiftAnchor(dir) {
+  if (tMode === 'day') tAnchor.setDate(tAnchor.getDate() + dir);
+  else if (tMode === 'week') tAnchor.setDate(tAnchor.getDate() + 7 * dir);
+  else tAnchor.setMonth(tAnchor.getMonth() + dir);
+  renderTime();
+}
+
+function renderTime() {
+  const grid = document.getElementById('timeGrid'), label = document.getElementById('timeLabel');
+  const today = iso(new Date());
+  if (tMode === 'month') {
+    label.textContent = MONTHS[tAnchor.getMonth()] + ' ' + tAnchor.getFullYear();
+    const first = new Date(tAnchor.getFullYear(), tAnchor.getMonth(), 1);
+    const start = new Date(first); start.setDate(1 - first.getDay());
+    let html = '<div class="month">' + DAYS.map(d => `<div class="dh">${d}</div>`).join('');
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start); d.setDate(start.getDate() + i);
+      const key = iso(d);
+      const out = d.getMonth() !== tAnchor.getMonth() ? ' out' : '';
+      const td = key === today ? ' today' : '';
+      const chips = state.blocks.filter(b => b.date === key).sort((a,b) => a.start - b.start)
+        .map(b => `<div class="chip" style="--blk-c:${COLORS[b.color]||COLORS.purple}" data-blk="${b.id}">${hrLabel(b.start)} ${esc(b.label)}</div>`).join('');
+      html += `<div class="mday${out}${td}" data-date="${key}"><div class="n">${d.getDate()}</div>${chips}</div>`;
+    }
+    grid.innerHTML = html + '</div>';
+    grid.querySelectorAll('.chip').forEach(c => c.onclick = e => { e.stopPropagation(); editBlock(state.blocks.find(b => b.id === c.dataset.blk)); });
+    grid.querySelectorAll('.mday').forEach(d => d.onclick = () => newBlock(d.dataset.date, 9));
+    return;
+  }
+  // day / week share the hour table
+  const days = [];
+  if (tMode === 'day') { days.push(new Date(tAnchor)); label.textContent = DAYS[tAnchor.getDay()] + ', ' + MONTHS[tAnchor.getMonth()] + ' ' + tAnchor.getDate(); }
+  else {
+    const ws = new Date(tAnchor); ws.setDate(tAnchor.getDate() - tAnchor.getDay());
+    for (let i = 0; i < 7; i++) { const d = new Date(ws); d.setDate(ws.getDate() + i); days.push(d); }
+    const we = days[6];
+    label.textContent = MONTHS[ws.getMonth()] + ' ' + ws.getDate() + ' – ' + (we.getMonth() !== ws.getMonth() ? MONTHS[we.getMonth()] + ' ' : '') + we.getDate();
+  }
+  let html = '<table class="week"><tr><th></th>' + days.map(d =>
+    `<th class="${iso(d) === today ? 'today' : ''}">${DAYS[d.getDay()]} ${d.getDate()}</th>`).join('') + '</tr>';
+  for (const h of HOURS) {
+    html += `<tr><td class="hr">${hrLabel(h)}</td>`;
+    for (const d of days) {
+      const key = iso(d);
+      const blks = state.blocks.filter(b => b.date === key && Math.floor(b.start) === h)
+        .map(b => `<div class="blk" style="--blk-c:${COLORS[b.color]||COLORS.purple};height:${Math.max(1, b.dur) * 46 - 4}px" data-blk="${b.id}">${esc(b.label)}<small>${hrLabel(b.start)} · ${b.dur}h</small></div>`).join('');
+      html += `<td data-date="${key}" data-h="${h}">${blks}</td>`;
+    }
+    html += '</tr>';
+  }
+  grid.innerHTML = html + '</table>';
+  grid.querySelectorAll('.blk').forEach(el => el.onclick = e => { e.stopPropagation(); editBlock(state.blocks.find(b => b.id === el.dataset.blk)); });
+  grid.querySelectorAll('td[data-date]').forEach(td => td.onclick = () => newBlock(td.dataset.date, +td.dataset.h));
+}
+
+function newBlock(date, start) { editBlock({ id: null, date, start, dur: 1, label: '', color: 'green' }); }
+function editBlock(b) {
+  if (!b) return;
+  const isNew = !b.id;
+  openModal(`
+    <h3>${isNew ? '＋ New time block' : '✏️ Edit block'}</h3>
+    <div class="row"><div><label>What</label><input id="mLabel" value="${esc(b.label)}" placeholder="deep work, gym, calls…"></div></div>
+    <div class="row">
+      <div><label>Date</label><input id="mDate" type="date" value="${b.date}"></div>
+      <div><label>Start</label><select id="mStart">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===Math.floor(b.start)?'selected':''}>${hrLabel(h)}</option>`).join('')}</select></div>
+      <div><label>Hours</label><select id="mDur">${[0.5,1,1.5,2,2.5,3,4,5,6,8].map(d=>`<option ${d===b.dur?'selected':''}>${d}</option>`).join('')}</select></div>
+    </div>
+    <div class="row"><div><label>Color</label><div class="swRow">${Object.entries(COLORS).map(([n,c])=>`<div class="sw ${n===b.color?'on':''}" data-c="${n}" style="background:${c}"></div>`).join('')}</div></div></div>
+    <div class="btns">
+      <button class="pri" id="mSave">${isNew ? 'Add it' : 'Save'}</button>
+      <button class="sec" id="mCancel">Cancel</button>
+      ${isNew ? '' : '<button class="dng" id="mDel">Delete</button>'}
+    </div>`);
+  let color = b.color;
+  document.querySelectorAll('#modal .sw').forEach(s => s.onclick = () => {
+    color = s.dataset.c;
+    document.querySelectorAll('#modal .sw').forEach(x => x.classList.toggle('on', x === s));
+  });
+  document.getElementById('mSave').onclick = () => {
+    const nb = { id: b.id || uid(), date: document.getElementById('mDate').value, start: +document.getElementById('mStart').value,
+      dur: +document.getElementById('mDur').value, label: document.getElementById('mLabel').value || 'block', color };
+    if (isNew) state.blocks.push(nb);
+    else Object.assign(state.blocks.find(x => x.id === b.id), nb);
+    touch(); closeModal(); renderTime();
+  };
+  document.getElementById('mCancel').onclick = closeModal;
+  const dl = document.getElementById('mDel');
+  if (dl) dl.onclick = () => { state.blocks = state.blocks.filter(x => x.id !== b.id); touch(); closeModal(); renderTime(); };
+  document.getElementById('mLabel').focus();
+}
+
+/* ═══════════════ CONTENT ═══════════════ */
+function renderContent() {
+  const list = document.getElementById('vidList');
+  if (!state.content.length) {
+    list.innerHTML = '<div class="tip">Nothing yet. Watch something good? Hit ＋ and paste the link. To grab a YouTube transcript manually: open the video → "…more" under the title → <b>Show transcript</b> → select all → copy → paste here. Or just give the link to Claude in terminal. 🎯</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (const v of [...state.content].reverse()) {
+    const el = document.createElement('div'); el.className = 'vidCard';
+    el.innerHTML = `<h3>${esc(v.title)}</h3><div class="u">${esc(v.url || '')}</div>
+      <div class="m">${v.transcript ? '📜 transcript · ' + v.transcript.split(/\s+/).length + ' words' : 'no transcript'} ${v.notes ? ' · 📝 notes' : ''}</div>`;
+    el.onclick = () => viewVideo(v);
+    list.appendChild(el);
+  }
+}
+
+document.getElementById('addVidBtn').onclick = () => {
+  openModal(`
+    <h3>＋ Add a video</h3>
+    <div class="row"><div><label>Title</label><input id="vTitle" placeholder="what's it called"></div></div>
+    <div class="row"><div><label>Link</label><input id="vUrl" placeholder="https://youtube.com/…"></div></div>
+    <div class="row"><div><label>Transcript (paste it — optional)</label><textarea id="vTr" rows="8" placeholder="YouTube → …more → Show transcript → copy → paste"></textarea></div></div>
+    <div class="tip">💡 Or skip this: paste the link to Claude in terminal and say "break this down" — he'll pull the transcript and put idea cards on your Brain Map.</div>
+    <div class="btns"><button class="pri" id="vSave">Add it</button><button class="sec" id="vCancel">Cancel</button></div>`);
+  document.getElementById('vSave').onclick = () => {
+    state.content.push({ id: uid(), title: document.getElementById('vTitle').value || 'Untitled video',
+      url: document.getElementById('vUrl').value, transcript: document.getElementById('vTr').value, notes: '', added: Date.now() });
+    touch(); closeModal(); renderContent();
+  };
+  document.getElementById('vCancel').onclick = closeModal;
+  document.getElementById('vTitle').focus();
+};
+
+function viewVideo(v) {
+  openModal(`
+    <h3>🎬 ${esc(v.title)}</h3>
+    ${v.url ? `<div class="u" style="margin-bottom:12px"><a href="${esc(v.url)}" target="_blank" style="color:var(--accent2)">${esc(v.url)}</a></div>` : ''}
+    <label style="display:block;font-size:12px;color:var(--dim);font-weight:700;margin-bottom:4px">MY NOTES / TAKEAWAYS</label>
+    <textarea id="vNotes" rows="4" style="width:100%">${esc(v.notes || '')}</textarea>
+    ${v.transcript ? `<label style="display:block;font-size:12px;color:var(--dim);font-weight:700;margin:12px 0 4px">TRANSCRIPT</label>
+      <div class="transcript" id="vTrView">${esc(v.transcript)}</div>
+      <div class="tip">✂️ Highlight any part of the transcript, then hit <b>Selection → Brain Map</b> to turn it into a card.</div>` : ''}
+    <div class="btns">
+      <button class="pri" id="vDone">Save & close</button>
+      ${v.transcript ? '<button class="sec" id="vToCard">✂️ Selection → Brain Map</button>' : ''}
+      <button class="dng" id="vDel">Delete</button>
+    </div>`);
+  document.getElementById('vDone').onclick = () => { v.notes = document.getElementById('vNotes').value; touch(); closeModal(); renderContent(); };
+  document.getElementById('vDel').onclick = () => { state.content = state.content.filter(x => x.id !== v.id); touch(); closeModal(); renderContent(); };
+  const tc = document.getElementById('vToCard');
+  if (tc) tc.onclick = () => {
+    const s = window.getSelection().toString().trim();
+    if (!s) return alert('Highlight some transcript text first');
+    const ys = state.nodes.length ? Math.max(...state.nodes.map(n => n.y)) + 140 : 60;
+    addNode(60, ys, '💡 ' + v.title, s.slice(0, 400), 'yellow');
+    tc.textContent = '✓ card added!';
+    setTimeout(() => tc.textContent = '✂️ Selection → Brain Map', 1500);
+  };
+}
+
+/* ═══════════════ MODAL ═══════════════ */
+const modalBg = document.getElementById('modalBg'), modal = document.getElementById('modal');
+function openModal(html) { modal.innerHTML = html; modalBg.classList.add('on'); }
+function closeModal() { modalBg.classList.remove('on'); modal.innerHTML = ''; }
+modalBg.onmousedown = e => { if (e.target === modalBg) closeModal(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ═══════════════ FOCUS TIMER ═══════════════ */
+const focusBtn = document.getElementById('focusBtn');
+let focusEnd = null, focusTick = null;
+focusBtn.onclick = () => {
+  if (focusEnd) { clearInterval(focusTick); focusEnd = null; focusBtn.textContent = '🎯 Focus'; focusBtn.className = ''; document.title = "🧠 Ricky's Brain Dump"; return; }
+  focusEnd = Date.now() + 25 * 60 * 1000;
+  focusBtn.className = 'running';
+  focusTick = setInterval(() => {
+    const left = focusEnd - Date.now();
+    if (left <= 0) {
+      clearInterval(focusTick); focusEnd = null;
+      focusBtn.textContent = '✅ DONE — take 5'; focusBtn.className = 'done';
+      document.title = '✅ BREAK TIME';
+      setTimeout(() => { focusBtn.textContent = '🎯 Focus'; focusBtn.className = ''; document.title = "🧠 Ricky's Brain Dump"; }, 5 * 60 * 1000);
+      return;
+    }
+    const m = Math.floor(left / 60000), s = Math.floor(left % 60000 / 1000);
+    focusBtn.textContent = `🎯 ${m}:${String(s).padStart(2, '0')}`;
+    document.title = `🎯 ${m}:${String(s).padStart(2, '0')} — locked in`;
+  }, 500);
+};
+
+/* ═══════════════ UTIL + BOOT ═══════════════ */
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+loadState();
+</script>

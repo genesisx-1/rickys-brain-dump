@@ -1,0 +1,16 @@
+{
+  "savedAt": 1,
+  "nodes": [
+    {
+      "id": "welcome1",
+      "x": 60,
+      "y": 60,
+      "title": "Welcome to your brain 🧠",
+      "body": "Double-click anywhere to dump a thought.\nDrag my ● dot to another card to connect ideas.",
+      "color": "purple"
+    }
+  ],
+  "edges": [],
+  "blocks": [],
+  "content": []
+}
